@@ -1,19 +1,54 @@
 const {
   BaseKonnector,
+  log,
   requestFactory,
   saveFiles,
   addData
 } = require('cozy-konnector-libs')
-const request = requestFactory({ cheerio: true })
+const request = requestFactory({ cheerio: true, jar: true, debug: true })
 
-const baseUrl = 'http://books.toscrape.com'
+const baseUrl = 'https://www.cesu.urssaf.fr/info/'
+const dashboardUrl = baseUrl + 'acceuil.html'
+const loginUrl = baseUrl + 'accueil.login.do'
 
 module.exports = new BaseKonnector(start)
+
+function start(fields) {
+  return authenticatefake(fields.login, fields.password)
+  //    .then(printjson)
+}
+
+function printjson($) {
+  //console.log($.html())
+  console.log('TRY')
+}
+
+function authenticate(login, password) {
+  log('info', 'Authenticating...')
+  return request({
+    method: 'POST',
+    uri: loginUrl,
+    form: {
+      username: login,
+      password: password
+    }
+  })
+}
+
+function authenticatefake(login, password) {
+  log('info', 'Authenticating...')
+  return request(
+    {
+      method: 'GET',
+      uri: dashboardUrl
+    } //).then( $ => { console.log($.html()) }
+  )
+}
 
 // The start function is run by the BaseKonnector instance only when it got all the account
 // information (fields). When you run this connector yourself in "standalone" mode or "dev" mode,
 // the account information come from ./konnector-dev-config.json file
-function start(fields) {
+function start2(fields) {
   // The BaseKonnector instance expects a Promise as return of the function
   return request(`${baseUrl}/index.html`).then($ => {
     // cheerio (https://cheerio.js.org/) uses the same api as jQuery (http://jquery.com/)
