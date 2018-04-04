@@ -73,11 +73,3 @@ function getBulletinsList(cesuNum) {
       }))
   })
 }
-
-// function constructList(jsonList) {
-//   var files = []
-//   for f in jsonList {
-//     console.log(f)
-//   }
-
-// }
