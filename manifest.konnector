@@ -1,10 +1,10 @@
 {
   "version": "1.0.0",
-  "name": "CESU",
+  "name": "konnector name",
   "type": "node",
-  "slug": "collect-cesu",
+  "slug": "konnectorslug",
   "description": "description",
-  "source": "git://github.com/konnectors/cozy-konnector-cesu.git",
+  "source": "git://github.com/konnectors/cozy-konnector-thename.git",
   "locales": {
     "fr": {
       "permissions": {

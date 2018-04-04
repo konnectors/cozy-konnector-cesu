@@ -1,4 +1,4 @@
-[Cozy][cozy] CESU connector
+[Cozy][cozy] <YOUR SUPER NEW KONNECTOR NAME>
 =======================================
 
 What's Cozy?
@@ -11,7 +11,7 @@ What's Cozy?
 What's this new konnector?
 --------------------------
 
-This connector fetches your employees payslips as PDF files.
+<YOUR DESCRIPTION HERE>
 
 ### Open a Pull-Request
 
@@ -23,7 +23,7 @@ This connector uses [cozy-konnector-libs](https://github.com/cozy/cozy-konnector
 
 ### Maintainer
 
-The lead maintainers for this konnector is @doubleface
+The lead maintainers for this konnector is <YOUR NAME>
 
 
 ### Get in touch
@@ -39,7 +39,7 @@ You can reach the Cozy Community by:
 License
 -------
 
-CESU connector is developed by cozy and distributed under the [AGPL v3 license][agpl-3.0].
+<YOUR KONNECTOR NAME> is developed by <your name> and distributed under the [AGPL v3 license][agpl-3.0].
 
 [cozy]: https://cozy.io "Cozy Cloud"
 [agpl-3.0]: https://www.gnu.org/licenses/agpl-3.0.html

@@ -1,10 +1,10 @@
 {
-  "name": "cozy-konnector-cesu",
+  "name": "cozy-konnector-template",
   "version": "1.0.0",
   "description": "",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/konnectors/cozy-konnector-cesu.git"
+    "url": "git+https://github.com/konnectors/cozy-konnector-template.git"
   },
   "keywords": [],
   "author": "",
@@ -29,7 +29,7 @@
     "build": "webpack",
     "precommit": "yarn lint",
     "lint": "eslint --fix .",
-    "deploy": "git-directory-deploy --directory build/ --branch ${DEPLOY_BRANCH:-build} --repo=${DEPLOY_REPOSITORY:-https://$GITHUB_TOKEN@github.com/konnectors/cozy-konnector-cesu.git}"
+    "deploy": "git-directory-deploy --directory build/ --branch ${DEPLOY_BRANCH:-build} --repo=${DEPLOY_REPOSITORY:-https://$GITHUB_TOKEN@github.com/konnectors/cozy-konnector-template.git}"
   },
   "dependencies": {
     "cozy-konnector-libs": "3.8.1"
