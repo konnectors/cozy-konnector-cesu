@@ -1,49 +1,75 @@
 const {
   BaseKonnector,
+  log,
   requestFactory,
-  saveFiles,
-  addData
+  saveFiles
 } = require('cozy-konnector-libs')
-const request = requestFactory({ cheerio: true })
+let request = requestFactory()
+const j = request.jar()
+request = requestFactory({
+  cheerio: false,
+  jar: j,
+  debug: false
+})
 
-const baseUrl = 'http://books.toscrape.com'
+const baseUrl = 'https://www.cesu.urssaf.fr/'
+const loginUrl = baseUrl + 'info/accueil.login.do'
 
 module.exports = new BaseKonnector(start)
 
-// The start function is run by the BaseKonnector instance only when it got all the account
-// information (fields). When you run this connector yourself in "standalone" mode or "dev" mode,
-// the account information come from ./konnector-dev-config.json file
 function start(fields) {
-  // The BaseKonnector instance expects a Promise as return of the function
-  return request(`${baseUrl}/index.html`).then($ => {
-    // cheerio (https://cheerio.js.org/) uses the same api as jQuery (http://jquery.com/)
-    // here I do an Array.from to convert the cheerio fake array to a real js array.
-    const entries = Array.from($('article')).map(article =>
-      parseArticle($, article)
-    )
-    return addData(entries, 'com.toscrape.books').then(() =>
-      saveFiles(entries, fields)
-    )
+  return authenticate(fields.login, fields.password)
+    .then(response => getCesuNumber(response))
+    .then(cesuNum => getBulletinsList(cesuNum))
+    .then(entries => {
+      log('info', 'Fetching payslips')
+      return saveFiles(entries, fields)
+    })
+}
+
+function authenticate(login, password) {
+  log('info', 'Authenticating...')
+  return request({
+    method: 'POST',
+    uri: loginUrl,
+    form: {
+      username: login,
+      password: password
+    }
   })
 }
 
-// The goal of this function is to parse a html page wrapped by a cheerio instance // and return an array of js objects which will be saved to the cozy by addData (https://github.com/cozy/cozy-konnector-libs/blob/master/docs/api.md#module_addData)
-// and saveFiles (https://github.com/cozy/cozy-konnector-libs/blob/master/docs/api.md#savefiles)
-function parseArticle($, article) {
-  const $article = $(article)
-  const title = $article.find('h3 a').attr('title')
-  return {
-    title,
-    price: normalizePrice($article.find('.price_color').text()),
-    url: `${baseUrl}/${$article.find('h3 a').attr('href')}`,
-    // when it finds a fileurl attribute, saveFiles will save this file to the cozy with a filename
-    // name
-    fileurl: `${baseUrl}/${$article.find('img').attr('src')}`,
-    filename: `${title}.jpg`
-  }
+function getCesuNumber() {
+  const infoCookie = j
+    .getCookies(loginUrl)
+    .find(cookie => cookie.key === 'EnligneInfo')
+  var cesuNumMatch = infoCookie.value.match('%22numerocesu%22%3A%22(.+?)%22')
+  if (cesuNumMatch) {
+    log('info', 'Cesu number found in page')
+    return cesuNumMatch[1]
+  } else throw new Error('') // TODO
 }
 
-// convert a price string to a float
-function normalizePrice(price) {
-  return parseFloat(price.trim().replace('£', ''))
+function getBulletinsList(cesuNum) {
+  const url =
+    baseUrl +
+    'cesuwebdec/employeurs/' +
+    cesuNum +
+    '/bulletinsSalaire?numInterneSalarie=&dtDebutRecherche=20130101&dtFinRecherche=20500101&numStart=0&nbAffiche=1000&numeroOrdre=0'
+  return request({
+    url: url,
+    json: true
+  }).then(body => {
+    return body.listeObjets
+      .filter(item => item.telechargeable === true)
+      .map(item => ({
+        fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${
+          item.referenceDocumentaire
+        }`,
+        filename: `${item.salarieDTO.nom}_${item.periode}.pdf`,
+        requestOptions: {
+          jar: j
+        }
+      }))
+  })
 }
