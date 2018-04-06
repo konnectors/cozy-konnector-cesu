@@ -2,7 +2,8 @@ const {
   BaseKonnector,
   log,
   requestFactory,
-  saveFiles
+  saveFiles,
+  errors
 } = require('cozy-konnector-libs')
 let request = requestFactory()
 const j = request.jar()
@@ -19,7 +20,7 @@ module.exports = new BaseKonnector(start)
 
 function start(fields) {
   return authenticate(fields.login, fields.password)
-    .then(response => getCesuNumber(response))
+    .then(getCesuNumber)
     .then(cesuNum => getBulletinsList(cesuNum))
     .then(entries => {
       log('info', 'Fetching payslips')
@@ -35,6 +36,23 @@ function authenticate(login, password) {
     form: {
       username: login,
       password: password
+    },
+    resolveWithFullResponse: true
+  }).catch(err => {
+    if (err.statusCode === 401) {
+      if (
+        err.error &&
+        err.error.listeMessages &&
+        err.error.listeMessages.length &&
+        err.error.listeMessages[0].contenu
+      ) {
+        log('error', err.error.listeMessages[0].contenu)
+      }
+      throw new Error(errors.LOGIN_FAILED)
+    } else if (err.statusCode === 500) {
+      throw new Error(errors.VENDOR_DOWN)
+    } else {
+      throw err
     }
   })
 }
