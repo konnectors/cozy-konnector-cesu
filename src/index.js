@@ -65,7 +65,10 @@ function getCesuNumber() {
   if (cesuNumMatch) {
     log('info', 'Cesu number found in page')
     return cesuNumMatch[1]
-  } else throw new Error('') // TODO
+  } else {
+    log('error', 'Could not get the CESU number in the cookie')
+    throw new Error(errors.VENDOR_DOWN)
+  }
 }
 
 function getBulletinsList(cesuNum) {
