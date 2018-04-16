@@ -13,6 +13,12 @@ request = requestFactory({
   debug: false
 })
 
+// Force sentry DSN into environment variables
+// In the future, will be set by the stack
+process.env.SENTRY_DSN =
+  process.env.SENTRY_DSN ||
+  'https://5c19c465c44b4f47a304a6339c7d3887:10d2e16087214f39b6188d21d40ea577@sentry.cozycloud.cc/36'
+
 const baseUrl = 'https://www.cesu.urssaf.fr/'
 const loginUrl = baseUrl + 'info/accueil.login.do'
 
@@ -65,7 +71,10 @@ function getCesuNumber() {
   if (cesuNumMatch) {
     log('info', 'Cesu number found in page')
     return cesuNumMatch[1]
-  } else throw new Error('') // TODO
+  } else {
+    log('error', 'Could not get the CESU number in the cookie')
+    throw new Error(errors.VENDOR_DOWN)
+  }
 }
 
 function getBulletinsList(cesuNum) {
