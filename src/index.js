@@ -2,7 +2,7 @@ const {
   BaseKonnector,
   log,
   requestFactory,
-  saveFiles,
+  saveBankingDocuments,
   errors
 } = require('cozy-konnector-libs')
 let request = requestFactory()
@@ -12,6 +12,7 @@ request = requestFactory({
   jar: j,
   debug: false
 })
+const moment = require('moment')
 
 const baseUrl = 'https://www.cesu.urssaf.fr/'
 const loginUrl = baseUrl + 'info/accueil.login.do'
@@ -24,7 +25,10 @@ function start(fields) {
     .then(cesuNum => getBulletinsList(cesuNum))
     .then(entries => {
       log('info', 'Fetching payslips')
-      return saveFiles(entries, fields)
+      return saveBankingDocuments(entries, fields, {
+        doctype: 'io.cozy.payslips',
+        identifiers: ['cesu']
+      })
     })
 }
 
@@ -87,10 +91,17 @@ function getBulletinsList(cesuNum) {
         fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${
           item.referenceDocumentaire
         }`,
-        filename: `${item.salarieDTO.nom}_${item.periode}.pdf`,
+        filename: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}_${
+          item.periode
+        }.pdf`,
         requestOptions: {
           jar: j
-        }
+        },
+        amount: parseFloat(item.salaireNet),
+        date: moment(item.dtVersement, 'YYYY/MM/DD').toDate(),
+        vendor: 'CESU',
+        isEmployee: true,
+        beneficiary: `${item.salarieDTO.nom} ${item.salarieDTO.prenom}`
       }))
   })
 }
