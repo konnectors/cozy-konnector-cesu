@@ -1,16 +1,38 @@
 {
   "version": "1.0.0",
-  "name": "konnector name",
-  "type": "node",
-  "slug": "konnectorslug",
-  "description": "description",
-  "source": "git://github.com/konnectors/cozy-konnector-thename.git",
+  "name": "CESU",
+  "type": "konnector",
+  "language": "node",
+  "icon": "cesu.png",
+  "slug": "cesu",
+  "source": "git://github.com/konnectors/cozy-konnector-cesu.git",
+  "editor": "Cozy",
+  "vendorLink": "https://www.cesu.urssaf.fr",
+  "categories": [
+    "public_service"
+  ],
+  "fields": {
+    "login": {
+      "type": "email"
+    },
+    "password": {
+      "type": "password"
+    },
+    "advancedFields": {
+      "folderPath": {
+        "advanced": true,
+        "isRequired": false
+      }
+    }
+  },
+  "dataType": [
+    "documents"
+  ],
   "locales": {
     "fr": {
+      "short_description": "Récupère vos documents CESU",
+      "long_description": "Récupère les bulletins de salaire de vos employés sur CESU",
       "permissions": {
-        "books": {
-          "description": "Utilisé pour sauvegarder les références de vos livres"
-        },
         "files": {
           "description": "Utilisé pour sauvegarder les couvertures de vos livres"
         },
@@ -18,13 +40,21 @@
           "description": "Utilisé pour récupérer les informations de votre compte"
         }
       }
+    },
+    "en": {
+      "short_description": "Retrieve your CESU documents",
+      "long_description": "Retrieve your employees payslips from CESU",
+      "permissions": {
+        "files": {
+          "description": "Required to save the file documents"
+        },
+        "accounts": {
+          "description": "Required to get the account's data"
+        }
+      }
     }
   },
   "permissions": {
-    "books": {
-      "description": "Required to save books' references",
-      "type": "io.cozy.books"
-    },
     "files": {
       "description": "Required to save the covers",
       "type": "io.cozy.files"
@@ -32,11 +62,13 @@
     "accounts": {
       "description": "Required to get the account's data",
       "type": "io.cozy.accounts",
-      "verbs": ["GET"]
+      "verbs": [
+        "GET"
+      ]
     }
   },
   "developer": {
-    "name": "cozy",
-    "url": "cozy.io"
+    "name": "Cozy",
+    "url": "https://cozy.io"
   }
 }
