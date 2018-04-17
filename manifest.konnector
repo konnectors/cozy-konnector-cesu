@@ -4,13 +4,11 @@
   "type": "konnector",
   "language": "node",
   "icon": "cesu.png",
-  "slug": "cesu",
+  "slug": "cesu-collect",
   "source": "git://github.com/konnectors/cozy-konnector-cesu.git",
   "editor": "Cozy",
   "vendorLink": "https://www.cesu.urssaf.fr",
-  "categories": [
-    "public_service"
-  ],
+  "categories": ["public_service"],
   "fields": {
     "login": {
       "type": "email"
@@ -28,13 +26,27 @@
   "dataType": [
     "documents"
   ],
+  "permissions": {
+    "files": {
+      "type": "io.cozy.files"
+    },
+    "accounts": {
+      "type": "io.cozy.accounts",
+      "verbs": ["GET"]
+    }
+  },
+  "developer": {
+    "name": "Cozy",
+    "url": "https://cozy.io"
+  },
+  "langs": ["fr", "en"],
   "locales": {
     "fr": {
       "short_description": "Récupère vos documents CESU",
       "long_description": "Récupère les bulletins de salaire de vos employés sur CESU",
       "permissions": {
         "files": {
-          "description": "Utilisé pour sauvegarder les couvertures de vos livres"
+          "description": "Utilisé pour sauvegarder vos factures"
         },
         "accounts": {
           "description": "Utilisé pour récupérer les informations de votre compte"
@@ -53,22 +65,5 @@
         }
       }
     }
-  },
-  "permissions": {
-    "files": {
-      "description": "Required to save the covers",
-      "type": "io.cozy.files"
-    },
-    "accounts": {
-      "description": "Required to get the account's data",
-      "type": "io.cozy.accounts",
-      "verbs": [
-        "GET"
-      ]
-    }
-  },
-  "developer": {
-    "name": "Cozy",
-    "url": "https://cozy.io"
   }
 }

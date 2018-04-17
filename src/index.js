@@ -44,23 +44,28 @@ function authenticate(login, password) {
       password: password
     },
     resolveWithFullResponse: true
-  }).catch(err => {
-    if (err.statusCode === 401) {
-      if (
-        err.error &&
-        err.error.listeMessages &&
-        err.error.listeMessages.length &&
-        err.error.listeMessages[0].contenu
-      ) {
-        log('error', err.error.listeMessages[0].contenu)
-      }
-      throw new Error(errors.LOGIN_FAILED)
-    } else if (err.statusCode === 500) {
-      throw new Error(errors.VENDOR_DOWN)
-    } else {
-      throw err
-    }
   })
+    .catch(err => {
+      if (err.statusCode === 401) {
+        if (
+          err.error &&
+          err.error.listeMessages &&
+          err.error.listeMessages.length &&
+          err.error.listeMessages[0].contenu
+        ) {
+          log('error', err.error.listeMessages[0].contenu)
+        }
+        throw new Error(errors.LOGIN_FAILED)
+      } else if (err.statusCode === 500) {
+        throw new Error(errors.VENDOR_DOWN)
+      } else {
+        throw err
+      }
+    })
+    .then(resp => {
+      log('info', 'Successfully logged in')
+      return resp
+    })
 }
 
 function getCesuNumber() {
