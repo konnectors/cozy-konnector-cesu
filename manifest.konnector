@@ -4,10 +4,10 @@
   "type": "konnector",
   "language": "node",
   "icon": "cesu.png",
-  "slug": "cesu-collect",
+  "slug": "cesu",
   "source": "git://github.com/konnectors/cozy-konnector-cesu.git",
   "editor": "Cozy",
-  "vendorLink": "https://www.cesu.urssaf.fr",
+  "vendor_link": "https://www.cesu.urssaf.fr",
   "categories": ["public_service"],
   "fields": {
     "login": {
@@ -23,7 +23,7 @@
       }
     }
   },
-  "dataType": [
+  "data_types": [
     "documents"
   ],
   "permissions": {
