@@ -11,7 +11,7 @@
   "categories": ["public_service"],
   "fields": {
     "login": {
-      "type": "email"
+      "type": "text"
     },
     "password": {
       "type": "password"
