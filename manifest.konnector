@@ -11,7 +11,7 @@
   "categories": ["public_service"],
   "fields": {
     "login": {
-      "type": "text"
+      "type": "email"
     },
     "password": {
       "type": "password"
@@ -65,6 +65,5 @@
         }
       }
     }
-  },
-  "manifest_version": "2"
+  }
 }
