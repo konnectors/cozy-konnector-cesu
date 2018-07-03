@@ -1,0 +1,70 @@
+{
+  "version": "1.0.2",
+  "name": "CESU",
+  "type": "konnector",
+  "language": "node",
+  "icon": "cesu.png",
+  "slug": "cesu",
+  "source": "git://github.com/konnectors/cozy-konnector-cesu.git",
+  "editor": "Cozy",
+  "vendor_link": "https://www.cesu.urssaf.fr",
+  "categories": ["public_service"],
+  "fields": {
+    "login": {
+      "type": "text"
+    },
+    "password": {
+      "type": "password"
+    },
+    "advancedFields": {
+      "folderPath": {
+        "advanced": true,
+        "isRequired": false
+      }
+    }
+  },
+  "data_types": [
+    "documents"
+  ],
+  "permissions": {
+    "files": {
+      "type": "io.cozy.files"
+    },
+    "accounts": {
+      "type": "io.cozy.accounts",
+      "verbs": ["GET"]
+    }
+  },
+  "developer": {
+    "name": "Cozy Cloud",
+    "url": "https://cozy.io"
+  },
+  "langs": ["fr", "en"],
+  "locales": {
+    "fr": {
+      "short_description": "Récupère vos documents CESU",
+      "long_description": "Récupère les bulletins de salaire de vos employés sur CESU",
+      "permissions": {
+        "files": {
+          "description": "Utilisé pour sauvegarder vos factures"
+        },
+        "accounts": {
+          "description": "Utilisé pour récupérer les informations de votre compte"
+        }
+      }
+    },
+    "en": {
+      "short_description": "Retrieve your CESU documents",
+      "long_description": "Retrieve your employees payslips from CESU",
+      "permissions": {
+        "files": {
+          "description": "Required to save the file documents"
+        },
+        "accounts": {
+          "description": "Required to get the account's data"
+        }
+      }
+    }
+  },
+  "manifest_version": "2"
+}
