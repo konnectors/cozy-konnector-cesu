@@ -9,8 +9,8 @@ let request = requestFactory()
 const j = request.jar()
 request = requestFactory({
   cheerio: false,
-  jar: j,
-  debug: false
+  jar: j
+  // debug: true
 })
 
 // Force sentry DSN into environment variables
@@ -53,7 +53,11 @@ function authenticate(login, password) {
           err.error.listeMessages.length &&
           err.error.listeMessages[0].contenu
         ) {
-          log('error', err.error.listeMessages[0].contenu)
+          const errorMessage = err.error.listeMessages[0].contenu
+          log('error', errorMessage)
+          if (errorMessage.includes('Compte bloqué')) {
+            throw new Error('LOGIN_FAILED.TOO_MANY_ATTEMPTS')
+          }
         }
         throw new Error(errors.LOGIN_FAILED)
       } else if (err.statusCode === 500) {
@@ -63,7 +67,7 @@ function authenticate(login, password) {
       }
     })
     .then(resp => {
-      log('info', 'Successfully logged in')
+      log('info', 'Correctly logged in')
       return resp
     })
 }
