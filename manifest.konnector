@@ -1,5 +1,5 @@
 {
-  "version": "1.0.3",
+  "version": "1.1.0",
   "name": "CESU",
   "type": "konnector",
   "language": "node",
