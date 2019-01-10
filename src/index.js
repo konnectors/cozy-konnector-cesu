@@ -1,3 +1,9 @@
+// Force sentry DSN into environment variables
+// In the future, will be set by the stack
+process.env.SENTRY_DSN =
+  process.env.SENTRY_DSN ||
+  'https://5c19c465c44b4f47a304a6339c7d3887:10d2e16087214f39b6188d21d40ea577@sentry.cozycloud.cc/36'
+
 const {
   BaseKonnector,
   log,
@@ -6,18 +12,14 @@ const {
   errors
 } = require('cozy-konnector-libs')
 let request = requestFactory()
+const format = require('date-fns/format')
+const subYears = require('date-fns/sub_years')
 const j = request.jar()
 request = requestFactory({
   cheerio: false,
   jar: j
   // debug: true
 })
-
-// Force sentry DSN into environment variables
-// In the future, will be set by the stack
-process.env.SENTRY_DSN =
-  process.env.SENTRY_DSN ||
-  'https://5c19c465c44b4f47a304a6339c7d3887:10d2e16087214f39b6188d21d40ea577@sentry.cozycloud.cc/36'
 
 const baseUrl = 'https://www.cesu.urssaf.fr/'
 const loginUrl = baseUrl + 'info/accueil.login.do'
@@ -87,11 +89,12 @@ function getCesuNumber() {
 }
 
 function getBulletinsList(cesuNum) {
+  const debutRecherche = format(subYears(new Date(), 5), 'YYYYMMDD')
   const url =
     baseUrl +
     'cesuwebdec/employeurs/' +
     cesuNum +
-    '/bulletinsSalaire?numInterneSalarie=&dtDebutRecherche=20130101&dtFinRecherche=20500101&numStart=0&nbAffiche=1000&numeroOrdre=0'
+    `/bulletinsSalaire?numInterneSalarie=&dtDebutRecherche=${debutRecherche}&dtFinRecherche=20500101&numStart=0&nbAffiche=1000&numeroOrdre=0`
   return request({
     url: url,
     json: true
