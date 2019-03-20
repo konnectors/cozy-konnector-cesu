@@ -5,7 +5,7 @@
   "language": "node",
   "icon": "cesu.png",
   "slug": "cesu",
-  "source": "git://github.com/konnectors/cozy-konnector-cesu.git",
+  "source": "git@github.com:konnectors/cozy-konnector-cesu.git",
   "editor": "Cozy",
   "vendor_link": "https://www.cesu.urssaf.fr",
   "categories": [
