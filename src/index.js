@@ -26,14 +26,12 @@ const loginUrl = baseUrl + 'info/accueil.login.do'
 
 module.exports = new BaseKonnector(start)
 
-function start(fields) {
-  return authenticate(fields.login, fields.password)
-    .then(getCesuNumber)
-    .then(cesuNum => getBulletinsList(cesuNum))
-    .then(entries => {
-      log('info', 'Fetching payslips')
-      return saveFiles(entries, fields)
-    })
+async function start(fields) {
+  await authenticate(fields.login, fields.password)
+  const cesuNum = await getCesuNumber()
+  const entries = await getBulletinsList(cesuNum)
+  log('info', 'Fetching payslips')
+  await saveFiles(entries, fields)
 }
 
 function authenticate(login, password) {
