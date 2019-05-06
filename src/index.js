@@ -159,6 +159,7 @@ async function getPrelevementsList(cesuNum) {
     amount: item.montantAcharge,
     date: parseDate(`${item.datePrelevement}T11:30:30`),
     vendor: 'cesu',
+    vendorRef: item.reference,
     requestOptions: {
       jar: j
     }
