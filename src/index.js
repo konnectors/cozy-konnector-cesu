@@ -30,8 +30,9 @@ async function start(fields) {
   await authenticate(fields.login, fields.password)
   const cesuNum = await getCesuNumber()
   const entries = await getBulletinsList(cesuNum)
-  log('info', 'Fetching payslips')
   await saveFiles(entries, fields)
+  const attestations = await getAttestationsList(cesuNum)
+  await saveFiles(attestations, fields)
 }
 
 function authenticate(login, password) {
@@ -87,6 +88,7 @@ function getCesuNumber() {
 }
 
 async function getBulletinsList(cesuNum) {
+  // TODO optimisation date ?
   const debutRecherche = format(subYears(new Date(), 5), 'YYYYMMDD')
   const url =
     baseUrl +
@@ -101,11 +103,29 @@ async function getBulletinsList(cesuNum) {
     .filter(item => item.telechargeable === true)
     .map(item => ({
       fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${
-          item.referenceDocumentaire
-        }`,
+        item.referenceDocumentaire
+      }`,
       filename: `${item.salarieDTO.nom}_${item.periode}.pdf`,
       requestOptions: {
-          jar: j
+        jar: j
       }
     }))
+}
+
+async function getAttestationsList(cesuNum) {
+  const url =
+    baseUrl + 'cesuwebdec/employeurs/' + cesuNum + `/attestationsfiscales`
+  const body = await request({
+    url: url,
+    json: true
+  })
+  return body.listeObjets.map(item => ({
+    fileurl:
+      `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
+      `attestation_fiscale_annee?periode=${item.periode}`,
+    filename: `${item.periode}_attestation_fiscale.pdf`,
+    requestOptions: {
+      jar: j
+    }
+  }))
 }
