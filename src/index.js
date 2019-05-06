@@ -86,27 +86,26 @@ function getCesuNumber() {
   }
 }
 
-function getBulletinsList(cesuNum) {
+async function getBulletinsList(cesuNum) {
   const debutRecherche = format(subYears(new Date(), 5), 'YYYYMMDD')
   const url =
     baseUrl +
     'cesuwebdec/employeurs/' +
     cesuNum +
     `/bulletinsSalaire?numInterneSalarie=&dtDebutRecherche=${debutRecherche}&dtFinRecherche=20500101&numStart=0&nbAffiche=1000&numeroOrdre=0`
-  return request({
+  const body = await request({
     url: url,
     json: true
-  }).then(body => {
-    return body.listeObjets
-      .filter(item => item.telechargeable === true)
-      .map(item => ({
-        fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${
+  })
+  return body.listeObjets
+    .filter(item => item.telechargeable === true)
+    .map(item => ({
+      fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${
           item.referenceDocumentaire
         }`,
-        filename: `${item.salarieDTO.nom}_${item.periode}.pdf`,
-        requestOptions: {
+      filename: `${item.salarieDTO.nom}_${item.periode}.pdf`,
+      requestOptions: {
           jar: j
-        }
-      }))
-  })
+      }
+    }))
 }
