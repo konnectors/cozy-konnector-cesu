@@ -30,7 +30,7 @@ module.exports = new BaseKonnector(start)
 
 async function start(fields) {
   await authenticate(fields.login, fields.password)
-  const cesuNum = await getCesuNumber()
+  const cesuNum = getCesuNumber()
   const entries = await getBulletinsList(cesuNum)
   await saveFiles(entries, fields)
   const attestations = await getAttestationsList(cesuNum)
