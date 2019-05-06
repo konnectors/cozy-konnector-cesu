@@ -9,11 +9,13 @@ const {
   log,
   requestFactory,
   saveFiles,
+  saveBills,
   errors
 } = require('cozy-konnector-libs')
 let request = requestFactory()
 const format = require('date-fns/format')
 const subYears = require('date-fns/sub_years')
+const parseDate = require('date-fns/parse')
 const j = request.jar()
 request = requestFactory({
   cheerio: false,
@@ -33,6 +35,10 @@ async function start(fields) {
   await saveFiles(entries, fields)
   const attestations = await getAttestationsList(cesuNum)
   await saveFiles(attestations, fields)
+  const bills = await getPrelevementsList(cesuNum)
+  await saveBills(bills, fields, {
+    identifiers: ['cesu']
+  })
 }
 
 function authenticate(login, password) {
@@ -88,7 +94,6 @@ function getCesuNumber() {
 }
 
 async function getBulletinsList(cesuNum) {
-  // TODO optimisation date ?
   const debutRecherche = format(subYears(new Date(), 5), 'YYYYMMDD')
   const url =
     baseUrl +
@@ -124,6 +129,36 @@ async function getAttestationsList(cesuNum) {
       `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
       `attestation_fiscale_annee?periode=${item.periode}`,
     filename: `${item.periode}_attestation_fiscale.pdf`,
+    requestOptions: {
+      jar: j
+    }
+  }))
+}
+
+async function getPrelevementsList(cesuNum) {
+  const debutRecherche = format(subYears(new Date(), 5), 'YYYYMMDD')
+  const url =
+    baseUrl +
+    'cesuwebdec/employeurs/' +
+    cesuNum +
+    `/entetePrelevements?dtDebut=${debutRecherche}&dtFin=20500101&numeroOrdre=0`
+  const body = await request({
+    url: url,
+    json: true
+  })
+  return body.listeObjets.map(item => ({
+    fileurl:
+      `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
+      `avisPrelevement?reference=${item.reference}` +
+      `&periode=${item.datePrelevement.substring(
+        0,
+        4
+      )}${item.datePrelevement.substring(5, 7)}` +
+      `&type=${item.typeOrigine}`,
+    filename: `${item.datePrelevement}_prelevement_${item.montantAcharge}€.pdf`,
+    amount: item.montantAcharge,
+    date: parseDate(`${item.datePrelevement}T11:30:30`),
+    vendor: 'cesu',
     requestOptions: {
       jar: j
     }
