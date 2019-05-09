@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.3.0",
   "name": "CESU",
   "type": "konnector",
   "language": "node",
@@ -73,6 +73,6 @@
       }
     }
   },
-  "banksTransactionRegExp": "\\bcesu\\b",
-  "manifest_version": "2"
+"banksTransactionRegExp": "\\bcesu\\b",
+"manifest_version": "2"
 }
