@@ -3,7 +3,7 @@
   "name": "CESU",
   "type": "konnector",
   "language": "node",
-  "icon": "cesu.png",
+  "icon": "cesu.svg",
   "slug": "cesu",
   "source": "git@github.com:konnectors/cozy-konnector-cesu.git",
   "editor": "Cozy",
@@ -56,7 +56,7 @@
   "locales": {
     "fr": {
       "short_description": "Récupère vos documents CESU",
-      "long_description": "Récupère les bulletins de salaire de vos employés sur CESU",
+      "long_description": "Récupère vos documents CESU\n- Bulletins de salaires\n- Avis de prélèvements\n- Attestations fiscales annuelles",
       "permissions": {
         "files": {
           "description": "Utilisé pour sauvegarder vos factures"
@@ -67,8 +67,8 @@
       }
     },
     "en": {
-      "short_description": "Retrieve your CESU documents",
-      "long_description": "Retrieve your employees payslips from CESU",
+      "short_description": "Fetch your CESU documents",
+      "long_description": "Recover your CESU documents\n- Payslips\n- Debit notices\n- Annual tax certificates",
       "permissions": {
         "files": {
           "description": "Required to save the file documents"
@@ -79,6 +79,6 @@
       }
     }
   },
-"banksTransactionRegExp": "\\bcesu\\b",
+"banksTransactionRegExp": "\\bcncesu\\b",
 "manifest_version": "2"
 }
