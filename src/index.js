@@ -20,7 +20,6 @@ const j = request.jar()
 request = requestFactory({
   cheerio: false,
   jar: j
-  // debug: true
 })
 
 const baseUrl = 'https://www.cesu.urssaf.fr/'
@@ -105,7 +104,7 @@ async function getBulletinsList(cesuNum) {
     json: true
   })
   return body.listeObjets
-    .filter(item => item.telechargeable === true)
+    .filter(item => item.isTelechargeable === true)
     .map(item => ({
       fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${
         item.referenceDocumentaire
@@ -141,7 +140,7 @@ async function getPrelevementsList(cesuNum) {
     baseUrl +
     'cesuwebdec/employeurs/' +
     cesuNum +
-    `/entetePrelevements?dtDebut=${debutRecherche}&dtFin=20500101&numeroOrdre=0`
+    `/entetePrelevements?dtDebut=${debutRecherche}&dtFin=20500101&numeroOrdre=0&nature=`
   const body = await request({
     url: url,
     json: true
