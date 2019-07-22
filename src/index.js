@@ -33,7 +33,10 @@ async function start(fields) {
   const entries = await getBulletinsList(cesuNum)
   await saveFiles(entries, fields)
   const attestations = await getAttestationsList(cesuNum)
-  await saveFiles(attestations, fields)
+  await saveFiles(attestations, fields, {
+    sourceAccount: this._account._id,
+    sourceAccountIdentifier: fields.login
+  })
   const bills = await getPrelevementsList(cesuNum)
   await saveBills(bills, fields, {
     identifiers: ['cesu'],
@@ -147,22 +150,26 @@ async function getPrelevementsList(cesuNum) {
     url: url,
     json: true
   })
-  return body.listeObjets.map(item => ({
-    fileurl:
-      `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
-      `avisPrelevement?reference=${item.reference}` +
-      `&periode=${item.datePrelevement.substring(
-        0,
-        4
-      )}${item.datePrelevement.substring(5, 7)}` +
-      `&type=${item.typeOrigine}`,
-    filename: `${item.datePrelevement}_prelevement_${item.montantAcharge}€.pdf`,
-    amount: item.montantAcharge,
-    date: parseDate(`${item.datePrelevement}T11:30:30`),
-    vendor: 'cesu',
-    vendorRef: item.reference,
-    requestOptions: {
-      jar: j
-    }
-  }))
+  return body.listeObjets
+    .filter(item => item.typeOrigine !== 'VS') // avoid future prelevements
+    .map(item => ({
+      fileurl:
+        `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
+        `avisPrelevement?reference=${item.reference}` +
+        `&periode=${item.datePrelevement.substring(
+          0,
+          4
+        )}${item.datePrelevement.substring(5, 7)}` +
+        `&type=${item.typeOrigine}`,
+      filename: `${item.datePrelevement}_prelevement_${
+        item.montantAcharge
+      }€.pdf`,
+      amount: item.montantAcharge,
+      date: parseDate(`${item.datePrelevement}T11:30:30`),
+      vendor: 'cesu',
+      vendorRef: item.reference,
+      requestOptions: {
+        jar: j
+      }
+    }))
 }
