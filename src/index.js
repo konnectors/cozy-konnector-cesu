@@ -18,6 +18,7 @@ const subYears = require('date-fns/sub_years')
 const parseDate = require('date-fns/parse')
 const j = request.jar()
 request = requestFactory({
+  // debug: true,
   cheerio: false,
   jar: j
 })
@@ -72,6 +73,9 @@ function authenticate(login, password) {
         }
         throw new Error(errors.LOGIN_FAILED)
       } else if (err.statusCode === 500) {
+        if (password === undefined) {
+          throw new Error(errors.LOGIN_FAILED)
+        }
         throw new Error(errors.VENDOR_DOWN)
       } else {
         throw err
