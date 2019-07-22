@@ -36,7 +36,9 @@ async function start(fields) {
   await saveFiles(attestations, fields)
   const bills = await getPrelevementsList(cesuNum)
   await saveBills(bills, fields, {
-    identifiers: ['cesu']
+    identifiers: ['cesu'],
+    sourceAccount: this._account._id,
+    sourceAccountIdentifier: fields.login
   })
 }
 
