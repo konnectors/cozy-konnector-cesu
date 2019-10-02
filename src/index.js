@@ -115,9 +115,7 @@ async function getBulletinsList(cesuNum) {
   return body.listeObjets
     .filter(item => item.isTelechargeable === true)
     .map(item => ({
-      fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${
-        item.referenceDocumentaire
-      }`,
+      fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${item.referenceDocumentaire}`,
       filename: `${item.salarieDTO.nom}_${item.periode}.pdf`,
       requestOptions: {
         jar: j
@@ -165,9 +163,7 @@ async function getPrelevementsList(cesuNum) {
           4
         )}${item.datePrelevement.substring(5, 7)}` +
         `&type=${item.typeOrigine}`,
-      filename: `${item.datePrelevement}_prelevement_${
-        item.montantAcharge
-      }€.pdf`,
+      filename: `${item.datePrelevement}_prelevement_${item.montantAcharge}€.pdf`,
       amount: item.montantAcharge,
       date: parseDate(`${item.datePrelevement}T11:30:30`),
       vendor: 'cesu',
