@@ -1,5 +1,5 @@
 {
-  "version": "1.5.0",
+  "version": "1.4.1",
   "name": "CESU",
   "type": "konnector",
   "language": "node",
@@ -56,7 +56,7 @@
   "locales": {
     "fr": {
       "short_description": "Récupère vos documents CESU",
-      "long_description": "Récupère vos documents CESU\n- Bulletins de salaires\n- Avis de prélèvements\n- Attestations fiscales annuelles",
+      "long_description": "Récupère vos documents CESU sur https://www.cesu.urssaf.fr\n- Bulletins de salaires\n- Avis de prélèvements\n- Attestations fiscales annuelles",
       "permissions": {
         "files": {
           "description": "Utilisé pour sauvegarder vos factures"
@@ -68,7 +68,7 @@
     },
     "en": {
       "short_description": "Fetch your CESU documents",
-      "long_description": "Recover your CESU documents\n- Payslips\n- Debit notices\n- Annual tax certificates",
+      "long_description": "Recover your CESU documents on https://www.cesu.urssaf.fr\n- Payslips\n- Debit notices\n- Annual tax certificates",
       "permissions": {
         "files": {
           "description": "Required to save the file documents"
