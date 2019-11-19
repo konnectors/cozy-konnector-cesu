@@ -14,7 +14,7 @@ const {
 } = require('cozy-konnector-libs')
 let request = requestFactory()
 const format = require('date-fns/format')
-const subYears = require('date-fns/sub_years')
+const subYears = require('date-fns/subYears')
 const parseDate = require('date-fns/parse')
 const j = request.jar()
 request = requestFactory({
@@ -102,7 +102,7 @@ function getCesuNumber() {
 }
 
 async function getBulletinsList(cesuNum) {
-  const debutRecherche = format(subYears(new Date(), 5), 'YYYYMMDD')
+  const debutRecherche = format(subYears(new Date(), 5), 'yyyyMMdd')
   const url =
     baseUrl +
     'cesuwebdec/employeurs/' +
@@ -142,7 +142,7 @@ async function getAttestationsList(cesuNum) {
 }
 
 async function getPrelevementsList(cesuNum) {
-  const debutRecherche = format(subYears(new Date(), 5), 'YYYYMMDD')
+  const debutRecherche = format(subYears(new Date(), 5), 'yyyyMMdd')
   const url =
     baseUrl +
     'cesuwebdec/employeurs/' +
