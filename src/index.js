@@ -15,7 +15,6 @@ const {
 let request = requestFactory()
 const format = require('date-fns/format')
 const subYears = require('date-fns/subYears')
-const parseDate = require('date-fns/parse')
 const j = request.jar()
 request = requestFactory({
   // debug: true,
@@ -165,7 +164,7 @@ async function getPrelevementsList(cesuNum) {
         `&type=${item.typeOrigine}`,
       filename: `${item.datePrelevement}_prelevement_${item.montantAcharge}€.pdf`,
       amount: item.montantAcharge,
-      date: parseDate(`${item.datePrelevement}T11:30:30`),
+      date: new Date(`${item.datePrelevement}T11:30:30`),
       vendor: 'cesu',
       vendorRef: item.reference,
       requestOptions: {
