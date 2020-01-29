@@ -1,5 +1,3 @@
-// Force sentry DSN into environment variables
-// In the future, will be set by the stack
 process.env.SENTRY_DSN =
   process.env.SENTRY_DSN ||
   'https://5c19c465c44b4f47a304a6339c7d3887:10d2e16087214f39b6188d21d40ea577@sentry.cozycloud.cc/36'
@@ -31,18 +29,48 @@ async function start(fields) {
   await authenticate(fields.login, fields.password)
   const cesuNum = getCesuNumber()
   const entries = await getBulletinsList(cesuNum)
-  await saveFiles(entries, fields)
+  let total = entries.length
+  if (entries.length) {
+    await saveBills(entries, fields, {
+      sourceAccount: this.accountId,
+      sourceAccountIdentifier: fields.login,
+      fileIdAttributes: ['vendorRef'],
+      keys: ['vendorRef'],
+      concurrency: 4,
+      linkBankOperations: false
+    })
+  }
+  const bsalaireEmploye = await getEmployeBulletinsList(cesuNum)
+  total += bsalaireEmploye.length
+  if (bsalaireEmploye.length)
+    await saveBills(bsalaireEmploye, fields, {
+      sourceAccount: this.accountId,
+      sourceAccountIdentifier: fields.login,
+      fileIdAttributes: ['vendorRef'],
+      keys: ['vendorRef'],
+      concurrency: 4,
+      linkBankOperations: false
+    })
   const attestations = await getAttestationsList(cesuNum)
-  await saveFiles(attestations, fields, {
-    sourceAccount: this._account._id,
-    sourceAccountIdentifier: fields.login
-  })
+  total += attestations.length
+  if (bsalaireEmploye.length)
+    await saveFiles(attestations, fields, {
+      sourceAccount: this.accountId,
+      sourceAccountIdentifier: fields.login,
+      fileIdAttributes: ['cesuNum', 'year']
+    })
   const bills = await getPrelevementsList(cesuNum)
-  await saveBills(bills, fields, {
-    identifiers: ['cesu'],
-    sourceAccount: this._account._id,
-    sourceAccountIdentifier: fields.login
-  })
+  total += bills.length
+  if (bills.length)
+    await saveBills(bills, fields, {
+      sourceAccount: this.accountId,
+      sourceAccountIdentifier: fields.login,
+      fileIdAttributes: ['vendor', 'vendorRef'],
+      keys: ['vendorRef'],
+      linkBankOperations: false
+    })
+
+  if (!total) log('warn', 'could not find any document for this account')
 }
 
 function authenticate(login, password) {
@@ -115,9 +143,55 @@ async function getBulletinsList(cesuNum) {
     .filter(item => item.isTelechargeable === true)
     .map(item => ({
       fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${item.referenceDocumentaire}`,
-      filename: `${item.salarieDTO.nom}_${item.periode}.pdf`,
+      filename: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}_${format(
+        new Date(item.dtDebut),
+        'yyyy-MM'
+      )}_${item.salaireNet}EUR.pdf`,
+      shouldReplaceName: `${item.salarieDTO.nom}_${item.periode}.pdf`,
+      amount: parseFloat(item.salaireNet),
+      date: new Date(item.dtDebut),
+      vendorRef: item.referenceDocumentaire,
+      employee: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}`,
       requestOptions: {
         jar: j
+      },
+      vendor: 'cesu',
+      matchingCriterias: {
+        labelRegex: '.*' // we do not have any information on operation label
+      }
+    }))
+}
+
+async function getEmployeBulletinsList(cesuNum) {
+  const debutRecherche = format(subYears(new Date(), 5), 'yyyyMMdd')
+  const url =
+    baseUrl +
+    'cesuwebdec/salaries/' +
+    cesuNum +
+    `/bulletinsSalaire?pseudoSiret=&dtDebutRecherche=${debutRecherche}&dtFinRecherche=20500101&numStart=0&nbAffiche=1000&numeroOrdre=0&orderBy=orderByRefDoc`
+  const body = await request({
+    url: url,
+    json: true
+  })
+
+  return body.listeObjets
+    .filter(item => item.isTelechargeable === true)
+    .map(item => ({
+      fileurl: `${baseUrl}cesuwebdec/salaries/${cesuNum}/editions/bulletinSalairePE?refDoc=${item.referenceDocumentaire}`,
+      filename: `${format(new Date(item.dtDebut), 'yyyy-MM')}_${
+        item.salaireNet
+      }EUR.pdf`,
+      amount: parseFloat(item.salaireNet),
+      isRefund: true,
+      date: new Date(item.dtDebut),
+      vendorRef: item.referenceDocumentaire,
+      subPath: `${item.employeurDTO.nom}_${item.employeurDTO.prenom}`,
+      requestOptions: {
+        jar: j
+      },
+      vendor: 'cesu',
+      matchingCriterias: {
+        labelRegex: '.*' // we do not have any information on operation label
       }
     }))
 }
@@ -133,6 +207,8 @@ async function getAttestationsList(cesuNum) {
     fileurl:
       `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
       `attestation_fiscale_annee?periode=${item.periode}`,
+    cesuNum,
+    year: item.periode,
     filename: `${item.periode}_attestation_fiscale.pdf`,
     requestOptions: {
       jar: j
