@@ -1,14 +1,16 @@
 {
-  "version": "1.0.2",
+  "version": "1.5.0",
   "name": "CESU",
   "type": "konnector",
   "language": "node",
-  "icon": "cesu.png",
+  "icon": "cesu.svg",
   "slug": "cesu",
-  "source": "git://github.com/konnectors/cozy-konnector-cesu.git",
+  "source": "git@github.com:konnectors/cozy-konnector-cesu.git",
   "editor": "Cozy",
   "vendor_link": "https://www.cesu.urssaf.fr",
-  "categories": ["public_service"],
+  "categories": [
+    "public_service"
+  ],
   "fields": {
     "login": {
       "type": "text"
@@ -27,23 +29,34 @@
     "documents"
   ],
   "permissions": {
+    "bank operations": {
+      "type": "io.cozy.bank.operations"
+    },
+    "bills": {
+      "type": "io.cozy.bills"
+    },
     "files": {
       "type": "io.cozy.files"
     },
     "accounts": {
       "type": "io.cozy.accounts",
-      "verbs": ["GET"]
+      "verbs": [
+        "GET"
+      ]
     }
   },
   "developer": {
     "name": "Cozy Cloud",
     "url": "https://cozy.io"
   },
-  "langs": ["fr", "en"],
+  "langs": [
+    "fr",
+    "en"
+  ],
   "locales": {
     "fr": {
       "short_description": "Récupère vos documents CESU",
-      "long_description": "Récupère les bulletins de salaire de vos employés sur CESU",
+      "long_description": "Récupère vos documents CESU sur https://www.cesu.urssaf.fr\n- Bulletins de salaires\n- Avis de prélèvements\n- Attestations fiscales annuelles",
       "permissions": {
         "files": {
           "description": "Utilisé pour sauvegarder vos factures"
@@ -54,8 +67,8 @@
       }
     },
     "en": {
-      "short_description": "Retrieve your CESU documents",
-      "long_description": "Retrieve your employees payslips from CESU",
+      "short_description": "Fetch your CESU documents",
+      "long_description": "Recover your CESU documents on https://www.cesu.urssaf.fr\n- Payslips\n- Debit notices\n- Annual tax certificates",
       "permissions": {
         "files": {
           "description": "Required to save the file documents"
@@ -66,5 +79,6 @@
       }
     }
   },
+  "banksTransactionRegExp": "\\bcncesu\\b",
   "manifest_version": "2"
 }
