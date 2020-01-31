@@ -159,7 +159,7 @@ async function getBulletinsList(cesuNum) {
       )}_${item.salaireNet}EUR.pdf`,
       shouldReplaceName: `${item.salarieDTO.nom}_${item.periode}.pdf`,
       amount: parseFloat(item.salaireNet),
-      date: new Date(item.dtDebut),
+      date: new Date(item.dtFin),
       vendorRef: item.referenceDocumentaire,
       employee: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}`,
       requestOptions: {
@@ -193,7 +193,7 @@ async function getEmployeBulletinsList(cesuNum) {
       }EUR.pdf`,
       amount: parseFloat(item.salaireNet),
       isRefund: true,
-      date: new Date(item.dtDebut),
+      date: new Date(item.dtFin),
       vendorRef: item.referenceDocumentaire,
       subPath: `${item.employeurDTO.nom}_${item.employeurDTO.prenom}`,
       requestOptions: {
