@@ -11,8 +11,8 @@ const {
   errors
 } = require('cozy-konnector-libs')
 let request = requestFactory()
-const format = require('date-fns/format')
-const subYears = require('date-fns/subYears')
+
+const { format, subYears } = require('date-fns')
 const j = request.jar()
 request = requestFactory({
   // debug: true,
@@ -61,7 +61,16 @@ async function start(fields) {
     })
   const bills = await getPrelevementsList(cesuNum)
   total += bills.length
-  if (bills.length)
+  if (bills.length) {
+    // add vendorRef to bills
+    // TODO to remove once it has been run on all accounts
+    await saveBills(bills, fields, {
+      sourceAccount: this.accountId,
+      sourceAccountIdentifier: fields.login,
+      fileIdAttributes: ['vendor', 'vendorRef'],
+      linkBankOperations: false,
+      shouldUpdate: (entry, dbEntry) => !dbEntry.vendorRef
+    })
     await saveBills(bills, fields, {
       sourceAccount: this.accountId,
       sourceAccountIdentifier: fields.login,
@@ -69,6 +78,7 @@ async function start(fields) {
       keys: ['vendorRef'],
       linkBankOperations: false
     })
+  }
 
   if (!total) log('warn', 'could not find any document for this account')
 }
