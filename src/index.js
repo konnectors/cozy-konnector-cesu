@@ -6,8 +6,6 @@ const {
   BaseKonnector,
   log,
   requestFactory,
-  saveFiles,
-  saveBills,
   errors
 } = require('cozy-konnector-libs')
 let request = requestFactory()
@@ -31,9 +29,7 @@ async function start(fields) {
   const entries = await getBulletinsList(cesuNum)
   let total = entries.length
   if (entries.length) {
-    await saveBills(entries, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
+    await this.saveBills(entries, fields, {
       fileIdAttributes: ['vendorRef'],
       keys: ['vendorRef'],
       concurrency: 4,
@@ -43,9 +39,7 @@ async function start(fields) {
   const bsalaireEmploye = await getEmployeBulletinsList(cesuNum)
   total += bsalaireEmploye.length
   if (bsalaireEmploye.length)
-    await saveBills(bsalaireEmploye, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
+    await this.saveBills(bsalaireEmploye, fields, {
       fileIdAttributes: ['vendorRef'],
       keys: ['vendorRef'],
       concurrency: 4,
@@ -54,26 +48,13 @@ async function start(fields) {
   const attestations = await getAttestationsList(cesuNum)
   total += attestations.length
   if (bsalaireEmploye.length)
-    await saveFiles(attestations, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
+    await this.saveFiles(attestations, fields, {
       fileIdAttributes: ['cesuNum', 'year']
     })
   const bills = await getPrelevementsList(cesuNum)
   total += bills.length
   if (bills.length) {
-    // add vendorRef to bills
-    // TODO to remove once it has been run on all accounts
-    await saveBills(bills, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
-      fileIdAttributes: ['vendor', 'vendorRef'],
-      linkBankOperations: false,
-      shouldUpdate: (entry, dbEntry) => !dbEntry.vendorRef
-    })
-    await saveBills(bills, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
+    await this.saveBills(bills, fields, {
       fileIdAttributes: ['vendor', 'vendorRef'],
       keys: ['vendorRef'],
       linkBankOperations: false
