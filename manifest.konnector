@@ -88,7 +88,8 @@
     "LOGIN_OK",
     "METADATA_DEDUP",
     "DOC_QUALIFICATION_V2",
-    "CARBON_COPY"
+    "CARBON_COPY",
+    "SENTRY_V2"
   ],
   "banksTransactionRegExp": "\\bcncesu\\b",
   "manifest_version": "2"
