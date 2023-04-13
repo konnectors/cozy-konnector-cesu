@@ -79,6 +79,17 @@
       }
     }
   },
+  "qualification_labels": [
+    "pay_sheet",
+    "tax_notice",
+    "other_tax_document"
+  ],
+  "features": [
+    "LOGIN_OK",
+    "METADATA_DEDUP",
+    "DOC_QUALIFICATION_V2",
+    "CARBON_COPY"
+  ],
   "banksTransactionRegExp": "\\bcncesu\\b",
   "manifest_version": "2"
 }

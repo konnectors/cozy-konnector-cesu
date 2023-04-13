@@ -8,9 +8,13 @@ const {
   requestFactory,
   saveFiles,
   saveBills,
-  errors
+  errors,
+  cozyClient
 } = require('cozy-konnector-libs')
 let request = requestFactory()
+
+const models = cozyClient.new.models
+const { Qualification } = models.document
 
 const { format, subYears } = require('date-fns')
 const j = request.jar()
@@ -166,6 +170,14 @@ async function getBulletinsList(cesuNum) {
       date: new Date(item.dtFin),
       vendorRef: item.referenceDocumentaire,
       employee: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}`,
+      fileAttributes: {
+        metadata: {
+          contentAuthor: 'cesu.urssaf.fr',
+          issueDate: new Date(),
+          carbonCopy: true,
+          qualification: Qualification.getByLabel('pay_sheet')
+        }
+      },
       requestOptions: {
         jar: j
       },
@@ -200,6 +212,14 @@ async function getEmployeBulletinsList(cesuNum) {
       date: new Date(item.dtFin),
       vendorRef: item.referenceDocumentaire,
       subPath: `${item.employeurDTO.nom}_${item.employeurDTO.prenom}`,
+      fileAttributes: {
+        metadata: {
+          contentAuthor: 'cesu.urssaf.fr',
+          issueDate: new Date(),
+          carbonCopy: true,
+          qualification: Qualification.getByLabel('pay_sheet')
+        }
+      },
       requestOptions: {
         jar: j
       },
@@ -224,6 +244,14 @@ async function getAttestationsList(cesuNum) {
     cesuNum,
     year: item.periode,
     filename: `${item.periode}_attestation_fiscale.pdf`,
+    fileAttributes: {
+      metadata: {
+        contentAuthor: 'cesu.urssaf.fr',
+        issueDate: new Date(),
+        carbonCopy: true,
+        qualification: Qualification.getByLabel('other_tax_document')
+      }
+    },
     requestOptions: {
       jar: j
     }
@@ -257,6 +285,14 @@ async function getPrelevementsList(cesuNum) {
       date: new Date(`${item.datePrelevement}T11:30:30`),
       vendor: 'cesu',
       vendorRef: item.reference,
+      fileAttributes: {
+        metadata: {
+          contentAuthor: 'cesu.urssaf.fr',
+          issueDate: new Date(),
+          carbonCopy: true,
+          qualification: Qualification.getByLabel('tax_notice')
+        }
+      },
       requestOptions: {
         jar: j
       }
