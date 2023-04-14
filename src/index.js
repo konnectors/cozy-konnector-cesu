@@ -17,7 +17,11 @@ const j = request.jar()
 request = requestFactory({
   // debug: true,
   cheerio: false,
-  jar: j
+  jar: j,
+  headers: {
+    'User-Agent':
+      'Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0'
+  }
 })
 
 const baseUrl = 'https://www.cesu.urssaf.fr/'
