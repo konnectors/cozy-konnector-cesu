@@ -43,6 +43,9 @@
       "verbs": [
         "GET"
       ]
+    },
+    "carbon_copy": {
+      "type": "io.cozy.certified.carbon_copy"
     }
   },
   "developer": {
@@ -63,6 +66,9 @@
         },
         "accounts": {
           "description": "Utilisé pour récupérer les informations de votre compte"
+        },
+        "carboncopy": {
+          "description": "Utilisé pour certifier vos fichier copie conforme avec les documents d'origine"
         }
       }
     },
@@ -75,6 +81,9 @@
         },
         "accounts": {
           "description": "Required to get the account's data"
+        },
+        "carboncopy": {
+          "description": "Required for carbon copy documents"
         }
       }
     }
