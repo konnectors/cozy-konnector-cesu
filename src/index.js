@@ -9,7 +9,8 @@ const {
   saveFiles,
   saveBills,
   errors,
-  cozyClient
+  cozyClient,
+  solveCaptcha
 } = require('cozy-konnector-libs')
 let request = requestFactory()
 
@@ -29,7 +30,8 @@ request = requestFactory({
 })
 
 const baseUrl = 'https://www.cesu.urssaf.fr/'
-const loginUrl = baseUrl + 'info/accueil.login.do'
+// const loginUrl = baseUrl + 'info/accueil.login.do'
+const loginUrl = baseUrl + 'cesuwebdec/authentication'
 
 module.exports = new BaseKonnector(start)
 
@@ -83,14 +85,21 @@ async function start(fields) {
   if (!total) log('warn', 'could not find any document for this account')
 }
 
-function authenticate(login, password) {
+async function authenticate(login, password) {
   log('info', 'Authenticating...')
+  const secureToken = await solveCaptcha({
+    type: 'hcaptcha',
+    websiteKey: 'f3923835-e25c-416b-a404-7a079e2b6366',
+    websiteURL:
+      'https://www.cesu.urssaf.fr/decla/index.html?page=page_se_connecter&LANG=FR'
+  })
   return request({
     method: 'POST',
     uri: loginUrl,
     form: {
       username: login,
-      password: password
+      password: password,
+      captchaResponse: secureToken
     },
     resolveWithFullResponse: true
   })
