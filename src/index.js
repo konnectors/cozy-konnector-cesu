@@ -96,7 +96,7 @@ async function authenticate(login, password) {
   return request({
     method: 'POST',
     uri: loginUrl,
-    form: {
+    json: {
       username: login,
       password: password,
       captchaResponse: secureToken
