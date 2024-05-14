@@ -23,11 +23,11 @@ request = requestFactory({
   debug: true,
   cheerio: false,
   json: true,
-  jar: j,
-  headers: {
-    'User-Agent':
-      'Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0'
-  }
+  jar: j
+  // headers: {
+  //   'User-Agent':
+  //     'Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0'
+  // }
 })
 
 const baseUrl = 'https://www.cesu.urssaf.fr/'
@@ -86,60 +86,81 @@ async function start(fields) {
   if (!total) log('warn', 'could not find any document for this account')
 }
 
-async function authenticate(/* login, password*/) {
+async function authenticate(login, password) {
   log('info', 'Authenticating...')
   const solveCaptchaResult = await solveCaptcha({
     type: 'hcaptcha',
     websiteKey: 'f3923835-e25c-416b-a404-7a079e2b6366',
     websiteURL:
       'https://www.cesu.urssaf.fr/decla/index.html?page=page_se_connecter&LANG=FR',
-    withFullSolution: true
+    withFullSolution: true,
+    isInvisible: true,
+    isEnterprise: true,
+    enterprisePayload: {
+      endpoint: 'https://hcaptcha-endpoint.urssaf.fr',
+      assethost: 'https://hcaptcha-assets.urssaf.fr',
+      imghost: 'https://hcaptcha-imgs.urssaf.fr',
+      reportapi: 'https://hcaptcha-reportapi.urssaf.fr'
+    }
   })
-  log('info', `solveCaptchaResult : ${solveCaptchaResult}`)
-  // return request({
-  //   method: 'POST',
-  //   uri: loginUrl,
-  //   body: {
-  //     username: login,
-  //     password: password,
-  //     captchaResponse: solveCaptchaResult
-  //   },
-  //   headers: {
-  //     'Content-Type': 'application/json; charset=utf-8',
-  //     'X-Requested-With': 'XMLHttpRequest',
-  //     Origin: 'https://www.cesu.urssaf.fr'
-  //   },
-  //   resolveWithFullResponse: true
-  // })
-  //   .catch(err => {
-  //     if (err.statusCode === 401) {
-  //       if (
-  //         err.error &&
-  //         err.error.listeMessages &&
-  //         err.error.listeMessages.length &&
-  //         err.error.listeMessages[0].contenu
-  //       ) {
-  //         const errorMessage = err.error.listeMessages[0].contenu
-  //         log('error', errorMessage)
-  //         if (errorMessage.includes('Compte bloqué')) {
-  //           throw new Error('LOGIN_FAILED.TOO_MANY_ATTEMPTS')
-  //         }
-  //       }
-  //       throw new Error(errors.LOGIN_FAILED)
-  //     } else if (err.statusCode === 500) {
-  //       if (password === undefined) {
-  //         throw new Error(errors.LOGIN_FAILED)
-  //       }
-  //       throw new Error(errors.VENDOR_DOWN)
-  //     } else {
-  //       throw err
-  //     }
-  //   })
-  //   .then(resp => {
-  //     log('info', 'Correctly logged in')
-  //     console.log('resp', resp.body)
-  //     return resp
-  //   })
+  log('info', `solveCaptchaResult : ${JSON.stringify(solveCaptchaResult)}`)
+  log('info', `captcha userAgent : ${solveCaptchaResult.userAgent}`)
+  log('info', `captchaResponse : ${solveCaptchaResult.gRecaptchaResponse}`)
+  return request({
+    method: 'POST',
+    uri: loginUrl,
+    body: {
+      captchaResponse: solveCaptchaResult.gRecaptchaResponse,
+      password: password,
+      username: login
+    },
+    headers: {
+      //       User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0
+      Accept: '*/*',
+      'Accept-Language': 'fr-FR,fr;q=0.8,en-US;q=0.5,en;q=0.3',
+      // 'Accept-Encoding': 'gzip, deflate, br',
+      Connection: 'keep-alive',
+      Referer:
+        'https://www.cesu.urssaf.fr/decla/index.html?page=page_se_connecter&LANG=FR',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'same-origin',
+      'Content-Type': 'application/json; charset=utf-8',
+      'X-Requested-With': 'XMLHttpRequest',
+      Origin: 'https://www.cesu.urssaf.fr',
+      'User-Agent': solveCaptchaResult.userAgent
+    },
+    resolveWithFullResponse: true
+  })
+    .catch(err => {
+      if (err.statusCode === 401) {
+        if (
+          err.error &&
+          err.error.listeMessages &&
+          err.error.listeMessages.length &&
+          err.error.listeMessages[0].contenu
+        ) {
+          const errorMessage = err.error.listeMessages[0].contenu
+          const intErrorCode = err.error.listeMessages[0].codeInterne
+          log('error', errorMessage + ' ' + intErrorCode)
+          if (errorMessage.includes('Compte bloqué')) {
+            throw new Error('LOGIN_FAILED.TOO_MANY_ATTEMPTS')
+          }
+        }
+        throw new Error(errors.LOGIN_FAILED)
+      } else if (err.statusCode === 500) {
+        if (password === undefined) {
+          throw new Error(errors.LOGIN_FAILED)
+        }
+        throw new Error(errors.VENDOR_DOWN)
+      } else {
+        throw err
+      }
+    })
+    .then(resp => {
+      log('info', 'Correctly logged in')
+      return resp
+    })
 }
 
 function getCesuNumber() {
