@@ -1,36 +1,26 @@
 {
-  "version": "1.9.0",
+  "version": "2.0.0",
   "name": "CESU",
   "type": "konnector",
   "language": "node",
+  "clientSide": true,
   "icon": "cesu.svg",
   "slug": "cesu",
-  "source": "git@github.com:konnectors/cozy-konnector-cesu.git",
+  "source": "git://github.com/konnectors/cozy-konnector-cesu.git",
   "editor": "Cozy",
   "vendor_link": "https://www.cesu.urssaf.fr",
   "categories": [
     "public_service"
   ],
-  "fields": {
-    "login": {
-      "type": "text"
-    },
-    "password": {
-      "type": "password"
-    },
-    "advancedFields": {
-      "folderPath": {
-        "advanced": true,
-        "isRequired": false
-      }
+  "folders": [
+    {
+      "defaultDir": "$administrative/$konnector/$account"
     }
-  },
-  "data_types": [
-    "documents"
   ],
+  "fields": {},
   "permissions": {
-    "bank operations": {
-      "type": "io.cozy.bank.operations"
+    "carbon_copy": {
+      "type": "io.cozy.certified.carbon_copy"
     },
     "bills": {
       "type": "io.cozy.bills"
@@ -38,14 +28,8 @@
     "files": {
       "type": "io.cozy.files"
     },
-    "accounts": {
-      "type": "io.cozy.accounts",
-      "verbs": [
-        "GET"
-      ]
-    },
-    "carbon_copy": {
-      "type": "io.cozy.certified.carbon_copy"
+    "identities": {
+      "type": "io.cozy.identities"
     }
   },
   "developer": {
@@ -61,14 +45,14 @@
       "short_description": "Récupère vos documents CESU",
       "long_description": "Récupère vos documents CESU sur https://www.cesu.urssaf.fr\n- Bulletins de salaires\n- Avis de prélèvements\n- Attestations fiscales annuelles",
       "permissions": {
-        "files": {
-          "description": "Utilisé pour sauvegarder vos factures"
+        "bills": {
+          "description": "Utilisé pour sauvegarder les données des factures"
         },
-        "accounts": {
-          "description": "Utilisé pour récupérer les informations de votre compte"
+        "files": {
+          "description": "Utilisé pour sauvegarder les factures"
         },
         "carboncopy": {
-          "description": "Utilisé pour certifier vos fichier copie conforme avec les documents d'origine"
+          "description": "Utilisé pour certifier que vos fichiers sont copie conforme avec les documents d'origine"
         }
       }
     },
@@ -76,11 +60,11 @@
       "short_description": "Fetch your CESU documents",
       "long_description": "Recover your CESU documents on https://www.cesu.urssaf.fr\n- Payslips\n- Debit notices\n- Annual tax certificates",
       "permissions": {
-        "files": {
-          "description": "Required to save the file documents"
+        "bills": {
+          "description": "Required to save the bills data"
         },
-        "accounts": {
-          "description": "Required to get the account's data"
+        "files": {
+          "description": "Required to save the bills"
         },
         "carboncopy": {
           "description": "Required for carbon copy documents"
@@ -94,12 +78,8 @@
     "other_tax_document"
   ],
   "features": [
-    "LOGIN_OK",
     "METADATA_DEDUP",
-    "DOC_QUALIFICATION_V2",
     "CARBON_COPY",
-    "SENTRY_V2"
-  ],
-  "banksTransactionRegExp": "\\bcncesu\\b",
-  "manifest_version": "2"
+    "DOC_QUALIFICATION_V2"
+  ]
 }

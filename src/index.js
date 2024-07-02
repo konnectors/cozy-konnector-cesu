@@ -1,301 +1,163 @@
-process.env.SENTRY_DSN =
-  process.env.SENTRY_DSN ||
-  'https://3b59f0ba64ba4a5da979b50a184e7ea8@errors.cozycloud.cc/59'
+import { ContentScript } from 'cozy-clisk/dist/contentscript'
+import Minilog from '@cozy/minilog'
+const log = Minilog('ContentScript')
+Minilog.enable()
 
-const {
-  BaseKonnector,
-  log,
-  requestFactory,
-  saveFiles,
-  saveBills,
-  errors,
-  cozyClient,
-  solveCaptcha
-} = require('cozy-konnector-libs')
-let request = requestFactory()
+const baseUrl = 'https://toscrape.com'
+const defaultSelector = "a[href='http://quotes.toscrape.com']"
+const loginLinkSelector = `[href='/login']`
+const logoutLinkSelector = `[href='/logout']`
 
-const models = cozyClient.new.models
-const { Qualification } = models.document
-
-const { format, subYears } = require('date-fns')
-const j = request.jar()
-request = requestFactory({
-  // debug: true,
-  cheerio: false,
-  jar: j,
-  headers: {
-    'User-Agent':
-      'Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0'
-  }
-})
-
-const baseUrl = 'https://www.cesu.urssaf.fr/'
-// const loginUrl = baseUrl + 'info/accueil.login.do'
-const loginUrl = baseUrl + 'cesuwebdec/authentication'
-
-module.exports = new BaseKonnector(start)
-
-async function start(fields) {
-  await authenticate(fields.login, fields.password)
-  const cesuNum = getCesuNumber()
-  const entries = await getBulletinsList(cesuNum)
-  let total = entries.length
-  if (entries.length) {
-    await saveBills(entries, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
-      fileIdAttributes: ['vendorRef'],
-      keys: ['vendorRef'],
-      concurrency: 4,
-      linkBankOperations: false
-    })
-  }
-  const bsalaireEmploye = await getEmployeBulletinsList(cesuNum)
-  total += bsalaireEmploye.length
-  if (bsalaireEmploye.length)
-    await saveBills(bsalaireEmploye, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
-      fileIdAttributes: ['vendorRef'],
-      keys: ['vendorRef'],
-      concurrency: 4,
-      linkBankOperations: false
-    })
-  const attestations = await getAttestationsList(cesuNum)
-  total += attestations.length
-  if (bsalaireEmploye.length)
-    await saveFiles(attestations, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
-      fileIdAttributes: ['cesuNum', 'year']
-    })
-  const bills = await getPrelevementsList(cesuNum)
-  total += bills.length
-  if (bills.length) {
-    await saveBills(bills, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
-      fileIdAttributes: ['vendor', 'vendorRef'],
-      keys: ['vendorRef'],
-      linkBankOperations: false,
-      requestInstance: request
-    })
+class TemplateContentScript extends ContentScript {
+  async navigateToLoginForm() {
+    this.log('info', '🤖 navigateToLoginForm')
+    await this.goto(baseUrl)
+    await this.waitForElementInWorker(defaultSelector)
+    await this.runInWorker('click', defaultSelector)
+    // wait for both logout or login link to be sure to check authentication when ready
+    await Promise.race([
+      this.waitForElementInWorker(loginLinkSelector),
+      this.waitForElementInWorker(logoutLinkSelector)
+    ])
   }
 
-  if (!total) log('warn', 'could not find any document for this account')
-}
-
-async function authenticate(login, password) {
-  log('info', 'Authenticating...')
-  const secureToken = await solveCaptcha({
-    type: 'hcaptcha',
-    websiteKey: 'f3923835-e25c-416b-a404-7a079e2b6366',
-    websiteURL:
-      'https://www.cesu.urssaf.fr/decla/index.html?page=page_se_connecter&LANG=FR'
-  })
-  return request({
-    method: 'POST',
-    uri: loginUrl,
-    form: {
-      username: login,
-      password: password,
-      captchaResponse: secureToken
-    },
-    resolveWithFullResponse: true
-  })
-    .catch(err => {
-      if (err.statusCode === 401) {
-        if (
-          err.error &&
-          err.error.listeMessages &&
-          err.error.listeMessages.length &&
-          err.error.listeMessages[0].contenu
-        ) {
-          const errorMessage = err.error.listeMessages[0].contenu
-          log('error', errorMessage)
-          if (errorMessage.includes('Compte bloqué')) {
-            throw new Error('LOGIN_FAILED.TOO_MANY_ATTEMPTS')
-          }
-        }
-        throw new Error(errors.LOGIN_FAILED)
-      } else if (err.statusCode === 500) {
-        if (password === undefined) {
-          throw new Error(errors.LOGIN_FAILED)
-        }
-        throw new Error(errors.VENDOR_DOWN)
-      } else {
-        throw err
-      }
-    })
-    .then(resp => {
-      log('info', 'Correctly logged in')
-      return resp
-    })
-}
-
-function getCesuNumber() {
-  const infoCookie = j
-    .getCookies(loginUrl)
-    .find(cookie => cookie.key === 'EnligneInfo')
-  var cesuNumMatch = infoCookie.value.match('%22numerocesu%22%3A%22(.+?)%22')
-  if (cesuNumMatch) {
-    log('info', 'Cesu number found in page')
-    return cesuNumMatch[1]
-  } else {
-    log('error', 'Could not get the CESU number in the cookie')
-    throw new Error(errors.VENDOR_DOWN)
-  }
-}
-
-async function getBulletinsList(cesuNum) {
-  const debutRecherche = format(subYears(new Date(), 5), 'yyyyMMdd')
-  const url =
-    baseUrl +
-    'cesuwebdec/employeurs/' +
-    cesuNum +
-    `/bulletinsSalaire?numInterneSalarie=&dtDebutRecherche=${debutRecherche}&dtFinRecherche=20500101&numStart=0&nbAffiche=1000&numeroOrdre=0`
-  const body = await request({
-    url: url,
-    json: true
-  })
-  return body.listeObjets
-    .filter(item => item.isTelechargeable === true)
-    .map(item => ({
-      fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${item.referenceDocumentaire}`,
-      filename: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}_${format(
-        new Date(item.dtDebut),
-        'yyyy-MM'
-      )}_${item.salaireNet}EUR.pdf`,
-      shouldReplaceName: `${item.salarieDTO.nom}_${item.periode}.pdf`,
-      amount: parseFloat(item.salaireNet),
-      date: new Date(item.dtFin),
-      vendorRef: item.referenceDocumentaire,
-      employee: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}`,
-      fileAttributes: {
-        metadata: {
-          contentAuthor: 'cesu.urssaf.fr',
-          issueDate: new Date(),
-          carbonCopy: true,
-          qualification: Qualification.getByLabel('pay_sheet')
-        }
-      },
-      requestOptions: {
-        jar: j
-      },
-      vendor: 'cesu',
-      matchingCriterias: {
-        labelRegex: '.*' // we do not have any information on operation label
-      }
-    }))
-}
-
-async function getEmployeBulletinsList(cesuNum) {
-  const debutRecherche = format(subYears(new Date(), 5), 'yyyyMMdd')
-  const url =
-    baseUrl +
-    'cesuwebdec/salaries/' +
-    cesuNum +
-    `/bulletinsSalaire?pseudoSiret=&dtDebutRecherche=${debutRecherche}&dtFinRecherche=20500101&numStart=0&nbAffiche=1000&numeroOrdre=0&orderBy=orderByRefDoc`
-  const body = await request({
-    url: url,
-    json: true
-  })
-
-  return body.listeObjets
-    .filter(item => item.isTelechargeable === true)
-    .map(item => ({
-      fileurl: `${baseUrl}cesuwebdec/salaries/${cesuNum}/editions/bulletinSalairePE?refDoc=${item.referenceDocumentaire}`,
-      filename: `${format(new Date(item.dtDebut), 'yyyy-MM')}_${
-        item.salaireNet
-      }EUR.pdf`,
-      amount: parseFloat(item.salaireNet),
-      isRefund: true,
-      date: new Date(item.dtFin),
-      vendorRef: item.referenceDocumentaire,
-      subPath: `${item.employeurDTO.nom}_${item.employeurDTO.prenom}`,
-      fileAttributes: {
-        metadata: {
-          contentAuthor: 'cesu.urssaf.fr',
-          issueDate: new Date(),
-          carbonCopy: true,
-          qualification: Qualification.getByLabel('pay_sheet')
-        }
-      },
-      requestOptions: {
-        jar: j
-      },
-      vendor: 'cesu',
-      matchingCriterias: {
-        labelRegex: '.*' // we do not have any information on operation label
-      }
-    }))
-}
-
-async function getAttestationsList(cesuNum) {
-  const url =
-    baseUrl + 'cesuwebdec/employeurs/' + cesuNum + `/attestationsfiscales`
-  const body = await request({
-    url: url,
-    json: true
-  })
-  return body.listeObjets.map(item => ({
-    fileurl:
-      `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
-      `attestation_fiscale_annee?periode=${item.periode}`,
-    cesuNum,
-    year: item.periode,
-    filename: `${item.periode}_attestation_fiscale.pdf`,
-    fileAttributes: {
-      metadata: {
-        contentAuthor: 'cesu.urssaf.fr',
-        issueDate: new Date(),
-        carbonCopy: true,
-        qualification: Qualification.getByLabel('other_tax_document')
-      }
-    },
-    requestOptions: {
-      jar: j
+  onWorkerEvent({ event, payload }) {
+    if (event === 'loginSubmit') {
+      this.log('info', 'received loginSubmit, blocking user interactions')
+      this.blockWorkerInteractions()
+    } else if (event === 'loginError') {
+      this.log(
+        'info',
+        'received loginError, unblocking user interactions: ' + payload?.msg
+      )
+      this.unblockWorkerInteractions()
     }
-  }))
+  }
+
+  async ensureAuthenticated({ account }) {
+    this.bridge.addEventListener('workerEvent', this.onWorkerEvent.bind(this))
+    this.log('info', '🤖 ensureAuthenticated')
+    if (!account) {
+      await this.ensureNotAuthenticated()
+    }
+    await this.navigateToLoginForm()
+    const authenticated = await this.runInWorker('checkAuthenticated')
+    if (!authenticated) {
+      this.log('info', 'Not authenticated')
+      await this.showLoginFormAndWaitForAuthentication()
+    }
+    this.unblockWorkerInteractions()
+    return true
+  }
+
+  async ensureNotAuthenticated() {
+    this.log('info', '🤖 ensureNotAuthenticated')
+    await this.navigateToLoginForm()
+    const authenticated = await this.runInWorker('checkAuthenticated')
+    if (!authenticated) {
+      return true
+    }
+
+    await this.clickAndWait(logoutLinkSelector, loginLinkSelector)
+    return true
+  }
+
+  onWorkerReady() {
+    window.addEventListener('DOMContentLoaded', () => {
+      const button = document.querySelector('input[type=submit]')
+      if (button) {
+        button.addEventListener('click', () =>
+          this.bridge.emit('workerEvent', { event: 'loginSubmit' })
+        )
+      }
+      const error = document.querySelector('.error')
+      if (error) {
+        this.bridge.emit('workerEvent', {
+          event: 'loginError',
+          payload: { msg: error.innerHTML }
+        })
+      }
+    })
+  }
+
+  async checkAuthenticated() {
+    return Boolean(document.querySelector(logoutLinkSelector))
+  }
+
+  async showLoginFormAndWaitForAuthentication() {
+    log.debug('showLoginFormAndWaitForAuthentication start')
+    await this.clickAndWait(loginLinkSelector, '#username')
+    await this.setWorkerState({ visible: true })
+    await this.runInWorkerUntilTrue({
+      method: 'waitForAuthenticated'
+    })
+    await this.setWorkerState({ visible: false })
+  }
+
+  async fetch(context) {
+    this.log('info', '🤖 fetch')
+    await this.goto('https://books.toscrape.com')
+    await this.waitForElementInWorker('#promotions')
+    const bills = await this.runInWorker('parseBills')
+
+    await this.saveBills(bills, {
+      contentType: 'image/jpeg',
+      fileIdAttributes: ['filename'],
+      context
+    })
+
+    const identity = await this.runInWorker('parseIdentity')
+    await this.saveIdentity(identity)
+  }
+
+  async getUserDataFromWebsite() {
+    this.log('info', '🤖 getUserDataFromWebsite')
+    return {
+      sourceAccountIdentifier: 'defaultTemplateSourceAccountIdentifier'
+    }
+  }
+
+  async parseBills() {
+    const articles = document.querySelectorAll('article')
+    return Array.from(articles).map(article => ({
+      amount: normalizePrice(article.querySelector('.price_color')?.innerHTML),
+      date: '2024-01-01', // use a fixed date to avoid the multiplication of bills
+      vendor: 'template',
+      filename: article.querySelector('h3 a')?.getAttribute('title'),
+      fileurl:
+        'https://books.toscrape.com/' +
+        article.querySelector('img')?.getAttribute('src')
+    }))
+  }
+
+  async parseIdentity() {
+    const contact = {
+      name: {
+        givenName: 'John',
+        familyName: 'Doe'
+      },
+      address: [
+        {
+          street: '2 rue du moulin',
+          postcode: '00000',
+          city: 'Paris',
+          formattedAddress: '2 rue du moulin 00000 Paris'
+        }
+      ],
+      email: [{ address: 'mail@mail.com' }]
+    }
+    return { contact }
+  }
 }
 
-async function getPrelevementsList(cesuNum) {
-  const debutRecherche = format(subYears(new Date(), 5), 'yyyyMMdd')
-  const url =
-    baseUrl +
-    'cesuwebdec/employeurs/' +
-    cesuNum +
-    `/entetePrelevements?dtDebut=${debutRecherche}&dtFin=20500101&numeroOrdre=0&nature=`
-  const body = await request({
-    url: url,
-    json: true
-  })
-  return body.listeObjets
-    .filter(item => item.typeOrigine !== 'VS') // avoid future prelevements
-    .map(item => ({
-      fileurl:
-        `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
-        `avisPrelevement?reference=${item.reference}` +
-        `&periode=${item.datePrelevement.substring(
-          0,
-          4
-        )}${item.datePrelevement.substring(5, 7)}` +
-        `&type=${item.typeOrigine}`,
-      filename: `${item.datePrelevement}_prelevement_${item.montantAcharge}€.pdf`,
-      amount: item.montantAcharge,
-      date: new Date(`${item.datePrelevement}T11:30:30`),
-      vendor: 'cesu',
-      vendorRef: item.reference,
-      fileAttributes: {
-        metadata: {
-          contentAuthor: 'cesu.urssaf.fr',
-          issueDate: new Date(),
-          carbonCopy: true,
-          qualification: Qualification.getByLabel('tax_notice')
-        }
-      },
-      requestOptions: {
-        jar: j
-      }
-    }))
+// Convert a price string to a float
+function normalizePrice(price) {
+  return parseFloat(price.replace('£', '').trim())
 }
+
+const connector = new TemplateContentScript()
+connector
+  .init({ additionalExposedMethodsNames: ['parseBills', 'parseIdentity'] })
+  .catch(err => {
+    log.warn(err)
+  })
