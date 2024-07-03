@@ -3,9 +3,18 @@ import Minilog from '@cozy/minilog'
 const log = Minilog('ContentScript')
 Minilog.enable('cesuCCC')
 
-const BASE_URL = 'https://www.cesu.urssaf.fr'
+const desktopUserAgent =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+
+// const BASE_URL = 'https://www.cesu.urssaf.fr'
+const BASE_URL =
+  'https://www.cesu.urssaf.fr/decla/index.html?page=page_empl_tableau_bord&LANG=FR'
 
 class TemplateContentScript extends ContentScript {
+  async setUserAgent() {
+    this.log('info', '📍️ setUserAgent starts')
+    await this.bridge.call('setUserAgent', desktopUserAgent)
+  }
   onWorkerReady() {
     window.addEventListener('DOMContentLoaded', () => {
       const button = document.querySelector('input[type=submit]')
@@ -40,11 +49,13 @@ class TemplateContentScript extends ContentScript {
   async navigateToLoginForm() {
     this.log('info', '🤖 navigateToLoginForm')
     await this.goto(BASE_URL)
+    await this.waitForElementInWorker('[pause]')
   }
 
-  async ensureAuthenticated({ account }) {
+  async ensureAuthenticated() {
     this.bridge.addEventListener('workerEvent', this.onWorkerEvent.bind(this))
     this.log('info', '🤖 ensureAuthenticated')
+    await this.setUserAgent()
     await this.navigateToLoginForm()
     return true
   }
@@ -58,11 +69,12 @@ class TemplateContentScript extends ContentScript {
     }
     return true
   }
-
-  async checkAuthenticated() {}
+  async checkAuthenticated() {
+    this.log('info', '📍️ checkAuthenticated starts')
+  }
 
   async showLoginFormAndWaitForAuthentication() {
-    log.debug('showLoginFormAndWaitForAuthentication start')
+    this.log('info', 'showLoginFormAndWaitForAuthentication start')
     await this.setWorkerState({ visible: true })
     await this.runInWorkerUntilTrue({
       method: 'waitForAuthenticated'
@@ -70,10 +82,8 @@ class TemplateContentScript extends ContentScript {
     await this.setWorkerState({ visible: false })
   }
 
-  async fetch(context) {
+  async fetch() {
     this.log('info', '🤖 fetch')
-    const identity = await this.runInWorker('parseIdentity')
-    await this.saveIdentity(identity)
   }
 
   async getUserDataFromWebsite() {
@@ -85,6 +95,6 @@ class TemplateContentScript extends ContentScript {
 }
 
 const connector = new TemplateContentScript()
-connector.init({ additionalExposedMethodsNames: [''] }).catch(err => {
+connector.init({ additionalExposedMethodsNames: [] }).catch(err => {
   log.warn(err)
 })
