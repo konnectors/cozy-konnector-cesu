@@ -27,7 +27,7 @@ const requestInterceptor = new RequestInterceptor([
 ])
 requestInterceptor.init()
 
-class TemplateContentScript extends ContentScript {
+class CesuContentScript extends ContentScript {
   async onWorkerReady() {
     await this.waitForElementNoReload('#connexion')
     this.watchLoginForm.bind(this)()
@@ -38,6 +38,12 @@ class TemplateContentScript extends ContentScript {
       this.log('info', `User's credential intercepted`)
       const { login, password } = payload
       this.store.userCredentials = { login, password }
+    }
+    if (event === 'requestResponse') {
+      if (payload.identifier === 'userIdentity')
+        this.log('info', `request intercepted`)
+      const { response } = payload
+      this.store.interceptedIdentity = { response }
     }
   }
 
@@ -150,6 +156,7 @@ class TemplateContentScript extends ContentScript {
     if (this.store.userCredentials) {
       await this.saveCredentials(this.store.userCredentials)
     }
+    await this.getIdentity()
   }
 
   async getUserDataFromWebsite() {
@@ -170,8 +177,21 @@ class TemplateContentScript extends ContentScript {
 
   async getIdentity() {
     this.log('info', '📍️ getIdentity starts')
-    const userData = await this.waitForRequestInterception('userIdentity')
-    this.log('info', `userData : ${JSON.stringify(userData)}`)
+    const userData = this.store.interceptedIdentity
+    // For now we can just found full name, email address and pseudoSiret
+    const firstName = userData.response.objet.prenom
+    const lastName = userData.response.objet.nom
+    // const pseudoSiret : userData.response.objet.pseudoSiret
+    const identity = {
+      email: [userData.response.objet.email],
+      name: {
+        firstName,
+        lastName,
+        fullName: `${firstName} ${lastName}`
+      }
+    }
+
+    await this.saveIdentity({ identity })
   }
 
   async scrollFormIntoView() {
@@ -179,11 +199,10 @@ class TemplateContentScript extends ContentScript {
     this.log('info', 'Scrolling to view')
     document.querySelector('.se-connecter.identifiant-pc-cesu').scrollIntoView()
     document.body.classList.add('noscroll')
-    this.log('info', 'DONE')
   }
 }
 
-const connector = new TemplateContentScript()
+const connector = new CesuContentScript({ requestInterceptor })
 connector
   .init({ additionalExposedMethodsNames: ['scrollFormIntoView'] })
   .catch(err => {
