@@ -3,6 +3,8 @@ import {
   ContentScript,
   RequestInterceptor
 } from 'cozy-clisk/dist/contentscript'
+
+const { format, subYears } = require('date-fns')
 import Minilog from '@cozy/minilog'
 const log = Minilog('ContentScript')
 Minilog.enable('cesuCCC')
@@ -11,10 +13,10 @@ Minilog.enable('cesuCCC')
 console.groupCollapsed = function () {}
 console.groupEnd = function () {}
 
-// const BASE_URL = 'https://www.cesu.urssaf.fr'
-const LOGIN_FORM_URL =
+const baseUrl = 'https://www.cesu.urssaf.fr/'
+const loginFormUrl =
   'https://www.cesu.urssaf.fr/decla/index.html?page=page_se_connecter&LANG=FR'
-const DASHBOARD_URL =
+const dashboardUrl =
   'https://www.cesu.urssaf.fr/decla/index.html?page=page_empl_tableau_bord&LANG=FR'
 
 const requestInterceptor = new RequestInterceptor([
@@ -22,6 +24,24 @@ const requestInterceptor = new RequestInterceptor([
     identifier: 'userIdentity',
     method: 'GET',
     url: '/cesuwebdec/employeursIdentite/',
+    serialization: 'json'
+  },
+  {
+    identifier: 'declarations',
+    method: 'GET',
+    url: '/declarationsby?',
+    serialization: 'json'
+  },
+  {
+    identifier: 'employees',
+    method: 'GET',
+    url: '/cesuwebdec/salariesTdb?pseudoSiret=',
+    serialization: 'json'
+  },
+  {
+    identifier: 'withdrawals',
+    method: 'GET',
+    url: '/recapprelevements',
     serialization: 'json'
   }
 ])
@@ -40,10 +60,9 @@ class CesuContentScript extends ContentScript {
       this.store.userCredentials = { login, password }
     }
     if (event === 'requestResponse') {
-      if (payload.identifier === 'userIdentity')
-        this.log('info', `request intercepted`)
-      const { response } = payload
-      this.store.interceptedIdentity = { response }
+      const { identifier } = payload
+      this.log('debug', `${identifier} request intercepted`)
+      this.store[identifier] = { payload }
     }
   }
 
@@ -69,13 +88,13 @@ class CesuContentScript extends ContentScript {
 
   async navigateToLoginForm() {
     this.log('info', '🤖 navigateToLoginForm')
-    await this.goto(LOGIN_FORM_URL)
+    await this.goto(loginFormUrl)
     await this.waitForElementInWorker('#connexion')
   }
 
   async navigateToDashboardPage() {
     this.log('info', '🤖 navigateToDashboardPage')
-    await this.goto(DASHBOARD_URL)
+    await this.goto(dashboardUrl)
     // If connected, reaches the user dashBoard, if not leads to the loginForm with an error element saying you need to be connected
     // We're waiting for this element because it mess with the form in a way autoFill is not working properly
     await Promise.race([
@@ -118,7 +137,7 @@ class CesuContentScript extends ContentScript {
 
   async ensureNotAuthenticated() {
     this.log('info', '🤖 ensureNotAuthenticated')
-    await this.navigateToLoginForm(LOGIN_FORM_URL)
+    await this.navigateToLoginForm(loginFormUrl)
     const authenticated = await this.runInWorker('checkAuthenticated')
     if (!authenticated) {
       return true
@@ -151,11 +170,19 @@ class CesuContentScript extends ContentScript {
     await this.setWorkerState({ visible: false })
   }
 
-  async fetch() {
+  async fetch(context) {
     this.log('info', '🤖 fetch')
     if (this.store.userCredentials) {
       await this.saveCredentials(this.store.userCredentials)
     }
+    const declarations = await this.getDeclarations()
+    await this.saveFiles(declarations, {
+      context,
+      fileIdAttributes: ['vendorRef'],
+      contentType: 'application/pdf',
+      qualificationLabel: 'pay_sheet'
+    })
+    await this.waitForElementInWorker('[pause]')
     await this.getIdentity()
   }
 
@@ -175,9 +202,44 @@ class CesuContentScript extends ContentScript {
     }
   }
 
+  async getDeclarations() {
+    this.log('info', '📍️ getDeclarations starts')
+    await this.runInWorker('click', '#page_empl_mes_declarations')
+    await Promise.all([
+      this.waitForElementInWorker('#mesDeclarations'),
+      this.waitForRequestInterception('declarations')
+    ])
+    const declarations = this.store.declarations.payload
+    const cesuNum = declarations.url.match(
+      /cesuwebdec\/employeurs\/(.*)\/declarationsby/
+    )[1]
+    return declarations.response.listeObjets
+      .filter(item => item.isTelechargeable === true)
+      .map(item => ({
+        fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${item.referenceDocumentaire}`,
+        filename: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}_${format(
+          new Date(item.dtDebut),
+          'yyyy-MM'
+        )}_${item.salaireNet}EUR.pdf`,
+        shouldReplaceName: `${item.salarieDTO.nom}_${item.periode}.pdf`,
+        amount: parseFloat(item.salaireNet),
+        date: new Date(item.dtFin),
+        vendorRef: item.referenceDocumentaire,
+        employee: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}`,
+        fileAttributes: {
+          metadata: {
+            contentAuthor: 'cesu.urssaf.fr',
+            issueDate: new Date(),
+            carbonCopy: true
+          }
+        },
+        vendor: 'cesu'
+      }))
+  }
+
   async getIdentity() {
     this.log('info', '📍️ getIdentity starts')
-    const userData = this.store.interceptedIdentity
+    const userData = this.store.userIdentity.payload
     // For now we can just found full name, email address and pseudoSiret
     const firstName = userData.response.objet.prenom
     const lastName = userData.response.objet.nom
