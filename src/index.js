@@ -21,6 +21,12 @@ const dashboardUrl =
 
 const requestInterceptor = new RequestInterceptor([
   {
+    identifier: 'authentication',
+    method: 'POST',
+    url: '/cesuwebdec/authentication',
+    serialization: 'json'
+  },
+  {
     identifier: 'userIdentity',
     method: 'GET',
     url: '/cesuwebdec/employeursIdentite/',
@@ -39,9 +45,15 @@ const requestInterceptor = new RequestInterceptor([
     serialization: 'json'
   },
   {
-    identifier: 'withdrawals',
+    identifier: 'prelevements',
     method: 'GET',
-    url: '/recapprelevements',
+    url: '/entetePrelevements',
+    serialization: 'json'
+  },
+  {
+    identifier: 'payslips',
+    method: 'GET',
+    url: '/bulletinSalaires',
     serialization: 'json'
   }
 ])
@@ -63,6 +75,9 @@ class CesuContentScript extends ContentScript {
       const { identifier } = payload
       this.log('debug', `${identifier} request intercepted`)
       this.store[identifier] = { payload }
+      if (identifier === 'authentication') {
+        this.store.cesuNum = payload.response.objet.numero
+      }
     }
   }
 
@@ -175,19 +190,27 @@ class CesuContentScript extends ContentScript {
     if (this.store.userCredentials) {
       await this.saveCredentials(this.store.userCredentials)
     }
-    const declarations = await this.getDeclarations()
+    const cesuNum = this.store.cesuNum
+    const declarations = await this.getDeclarations(cesuNum)
     await this.saveFiles(declarations, {
       context,
       fileIdAttributes: ['vendorRef'],
       contentType: 'application/pdf',
       qualificationLabel: 'pay_sheet'
     })
-    const attestations = await this.getAttestations()
+    const attestations = await this.getAttestations(cesuNum)
     await this.saveFiles(attestations, {
       context,
       fileIdAttributes: ['cesuNum', 'year'],
       contentType: 'application/pdf',
       qualificationLabel: 'other_tax_document'
+    })
+    const prelevements = await this.getPrelevements(cesuNum)
+    await this.saveFiles(prelevements, {
+      context,
+      fileIdAttributes: ['cesuNum', 'year'],
+      contentType: 'application/pdf',
+      qualificationLabel: 'tax_notice'
     })
     await this.waitForElementInWorker('[pause]')
     await this.getIdentity()
@@ -209,7 +232,7 @@ class CesuContentScript extends ContentScript {
     }
   }
 
-  async getDeclarations() {
+  async getDeclarations(cesuNum) {
     this.log('info', '📍️ getDeclarations starts')
     await this.goto(
       'https://www.cesu.urssaf.fr/decla/index.html?page=page_empl_mes_declarations&LANG=FR'
@@ -220,9 +243,9 @@ class CesuContentScript extends ContentScript {
       this.waitForRequestInterception('declarations')
     ])
     const declarations = this.store.declarations.payload
-    const cesuNum = declarations.url.match(
-      /cesuwebdec\/employeurs\/(.*)\/declarationsby/
-    )[1]
+    // const cesuNum = declarations.url.match(
+    //   /cesuwebdec\/employeurs\/(.*)\/declarationsby/
+    // )[1]
     return declarations.response.listeObjets
       .filter(item => item.isTelechargeable === true)
       .map(item => ({
@@ -247,7 +270,7 @@ class CesuContentScript extends ContentScript {
       }))
   }
 
-  async getAttestations() {
+  async getAttestations(cesuNum) {
     this.log('info', '📍️ getAttestations starts')
     await this.goto(
       'https://www.cesu.urssaf.fr/decla/index.html?page=page_empl_avantage_fiscal&LANG=FR'
@@ -258,9 +281,9 @@ class CesuContentScript extends ContentScript {
       this.waitForRequestInterception('attestations')
     ])
     const attestations = this.store.attestations.payload
-    const cesuNum = attestations.url.match(
-      /cesuwebdec\/employeurs\/(.*)\/attestationsfiscales/
-    )[1]
+    // const cesuNum = attestations.url.match(
+    //   /cesuwebdec\/employeurs\/(.*)\/attestationsfiscales/
+    // )[1]
     return attestations.response.listeObjets.map(item => ({
       fileurl:
         `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
@@ -276,6 +299,47 @@ class CesuContentScript extends ContentScript {
         }
       }
     }))
+  }
+
+  async getPrelevements(cesuNum) {
+    this.log('info', '📍️ getPrelevements starts')
+    await this.goto(
+      'https://www.cesu.urssaf.fr/decla/index.html?page=page_empl_mes_prelevements&LANG=FR'
+    )
+    await Promise.all([
+      // Selector here is not a mistake, they misspelled it on the website
+      this.waitForElementInWorker('#resultatsAffiches'),
+      this.waitForRequestInterception('prelevements')
+    ])
+    const prelevements = this.store.prelevements.payload
+    // const cesuNum = prelevements.url.match(
+    //   /cesuwebdec\/employeurs\/(.*)\/entetePrelevements/
+    // )[1]
+
+    return prelevements.response.listeObjets
+      .filter(item => item.typeOrigine !== 'VS') // avoid future prelevements
+      .map(item => ({
+        fileurl:
+          `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
+          `avisPrelevement?reference=${item.reference}` +
+          `&periode=${item.datePrelevement.substring(
+            0,
+            4
+          )}${item.datePrelevement.substring(5, 7)}` +
+          `&type=${item.typeOrigine}`,
+        filename: `${item.datePrelevement}_prelevement_${item.montantAcharge}€.pdf`,
+        amount: item.montantAcharge,
+        date: new Date(`${item.datePrelevement}T11:30:30`),
+        vendor: 'cesu',
+        vendorRef: item.reference,
+        fileAttributes: {
+          metadata: {
+            contentAuthor: 'cesu.urssaf.fr',
+            issueDate: new Date(),
+            carbonCopy: true
+          }
+        }
+      }))
   }
 
   async getIdentity() {
