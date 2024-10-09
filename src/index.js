@@ -33,9 +33,9 @@ const requestInterceptor = new RequestInterceptor([
     serialization: 'json'
   },
   {
-    identifier: 'employees',
+    identifier: 'attestations',
     method: 'GET',
-    url: '/cesuwebdec/salariesTdb?pseudoSiret=',
+    url: '/attestationsfiscales',
     serialization: 'json'
   },
   {
@@ -182,6 +182,13 @@ class CesuContentScript extends ContentScript {
       contentType: 'application/pdf',
       qualificationLabel: 'pay_sheet'
     })
+    const attestations = await this.getAttestations()
+    await this.saveFiles(attestations, {
+      context,
+      fileIdAttributes: ['cesuNum', 'year'],
+      contentType: 'application/pdf',
+      qualificationLabel: 'other_tax_document'
+    })
     await this.waitForElementInWorker('[pause]')
     await this.getIdentity()
   }
@@ -204,7 +211,10 @@ class CesuContentScript extends ContentScript {
 
   async getDeclarations() {
     this.log('info', '📍️ getDeclarations starts')
-    await this.runInWorker('click', '#page_empl_mes_declarations')
+    await this.goto(
+      'https://www.cesu.urssaf.fr/decla/index.html?page=page_empl_mes_declarations&LANG=FR'
+    )
+    // sometimes one resolve before the other and vice versa so wait for both of them
     await Promise.all([
       this.waitForElementInWorker('#mesDeclarations'),
       this.waitForRequestInterception('declarations')
@@ -235,6 +245,37 @@ class CesuContentScript extends ContentScript {
         },
         vendor: 'cesu'
       }))
+  }
+
+  async getAttestations() {
+    this.log('info', '📍️ getAttestations starts')
+    await this.goto(
+      'https://www.cesu.urssaf.fr/decla/index.html?page=page_empl_avantage_fiscal&LANG=FR'
+    )
+    await Promise.all([
+      // Selector here is not a mistake, they misspelled it on the website
+      this.waitForElementInWorker('#liste_attestions_fiscales'),
+      this.waitForRequestInterception('attestations')
+    ])
+    const attestations = this.store.attestations.payload
+    const cesuNum = attestations.url.match(
+      /cesuwebdec\/employeurs\/(.*)\/attestationsfiscales/
+    )[1]
+    return attestations.response.listeObjets.map(item => ({
+      fileurl:
+        `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/` +
+        `attestation_fiscale_annee?periode=${item.periode}`,
+      cesuNum,
+      year: item.periode,
+      filename: `${item.periode}_attestation_fiscale.pdf`,
+      fileAttributes: {
+        metadata: {
+          contentAuthor: 'cesu.urssaf.fr',
+          issueDate: new Date(),
+          carbonCopy: true
+        }
+      }
+    }))
   }
 
   async getIdentity() {
