@@ -4,7 +4,7 @@ import {
   RequestInterceptor
 } from 'cozy-clisk/dist/contentscript'
 
-const { format, subYears } = require('date-fns')
+const { format } = require('date-fns')
 import Minilog from '@cozy/minilog'
 const log = Minilog('ContentScript')
 Minilog.enable('cesuCCC')
@@ -129,13 +129,16 @@ class CesuContentScript extends ContentScript {
     } else {
       await this.navigateToDashboardPage()
       const authenticated = await this.runInWorker('checkAuthenticated')
+      this.store.isEmployer = authenticated === 'employer'
       if (authenticated) {
-        this.log('info', 'Already connected, continue ...')
+        this.log('info', `Already connected as ${authenticated}, continue ...`)
         return true
       } else {
         await this.autoLogin(credentials)
         await this.waitForElementInWorker('#deconnexion_link_mobile')
-        this.log('info', 'autoLogin succeeded')
+        const autoAuth = await this.runInWorker('checkAuthenticated')
+        this.store.isEmployer = autoAuth === 'employer'
+        this.log('info', `autoLogin succeeded as ${autoAuth}`)
       }
     }
     return true
@@ -166,11 +169,15 @@ class CesuContentScript extends ContentScript {
     this.log('info', '📍️ checkAuthenticated starts')
     const formElement = document.querySelector('#connexion')
     const logoutButton = document.querySelector('#deconnexion_link_mobile')
+    const declaElement = document.querySelector('#page_empl_mes_declarations')
     if (formElement) {
       return false
-    } else if (logoutButton) {
-      this.log('info', 'Auth check succeeded')
-      return true
+    } else if (logoutButton && declaElement) {
+      this.log('info', 'Auth check succeeded - Employer account')
+      return 'employer'
+    } else if (logoutButton && !declaElement) {
+      this.log('info', 'Auth check succeeded - Probably employee account')
+      return 'employee'
     }
     return false
   }
@@ -191,29 +198,42 @@ class CesuContentScript extends ContentScript {
       await this.saveCredentials(this.store.userCredentials)
     }
     const cesuNum = this.store.cesuNum
-    const declarations = await this.getDeclarations(cesuNum)
-    await this.saveFiles(declarations, {
-      context,
-      fileIdAttributes: ['vendorRef'],
-      contentType: 'application/pdf',
-      qualificationLabel: 'pay_sheet'
-    })
-    const attestations = await this.getAttestations(cesuNum)
-    await this.saveFiles(attestations, {
-      context,
-      fileIdAttributes: ['cesuNum', 'year'],
-      contentType: 'application/pdf',
-      qualificationLabel: 'other_tax_document'
-    })
-    const prelevements = await this.getPrelevements(cesuNum)
-    await this.saveFiles(prelevements, {
-      context,
-      fileIdAttributes: ['cesuNum', 'year'],
-      contentType: 'application/pdf',
-      qualificationLabel: 'tax_notice'
-    })
-    await this.waitForElementInWorker('[pause]')
-    await this.getIdentity()
+    if (this.store.isEmployer) {
+      this.log('info', 'Employer account')
+      const declarations = await this.getDeclarations(cesuNum)
+      await this.saveFiles(declarations, {
+        context,
+        fileIdAttributes: ['vendorRef'],
+        contentType: 'application/pdf',
+        qualificationLabel: 'pay_sheet'
+      })
+      const attestations = await this.getAttestations(cesuNum)
+      await this.saveFiles(attestations, {
+        context,
+        fileIdAttributes: ['cesuNum', 'year'],
+        contentType: 'application/pdf',
+        qualificationLabel: 'other_tax_document'
+      })
+      const prelevements = await this.getPrelevements(cesuNum)
+      await this.saveFiles(prelevements, {
+        context,
+        fileIdAttributes: ['vendor', 'vendorRef'],
+        contentType: 'application/pdf',
+        qualificationLabel: 'tax_notice'
+      })
+      await this.getIdentity()
+    } else {
+      this.log('info', 'Employee acount')
+      const employeePayslip = await this.getEmployeePayslips(cesuNum)
+      await this.saveFiles(employeePayslip, {
+        context,
+        fileIdAttributes: ['vendorRef'],
+        contentType: 'application/pdf',
+        qualificationLabel: 'pay_sheet'
+      })
+      // Regarding the state of the intercepted response for the identity, we assume it will be different for an employee
+      // so for now, we're not fetching any identity for this type of account
+    }
   }
 
   async getUserDataFromWebsite() {
@@ -339,6 +359,50 @@ class CesuContentScript extends ContentScript {
             carbonCopy: true
           }
         }
+      }))
+  }
+
+  async getEmployeePayslips(cesuNum) {
+    this.log('info', '📍️ getEmployeePayslips starts')
+    // Keeping this around for when we will have the url and the exact element to wait for
+    // await this.goto(
+    //   'https://www.cesu.urssaf.fr/decla/index.html?page=page_empl_mes_prelevements&LANG=FR'
+    // )
+    // await Promise.all([
+    //   // Selector here is not a mistake, they misspelled it on the website
+    //   this.waitForElementInWorker('#resultatsAffiches'),
+    //   this.waitForRequestInterception('payslips')
+    // ])
+    await this.runInWorker('click', 'a', {
+      incldesText: 'Mes bulletins de salaire'
+    })
+    await Promise.all([
+      this.waitForRequestInterception('payslips'),
+      // Only thing we can be pretty sure it appears on the next page
+      this.waitForElementInWorker('#filAriane')
+    ])
+    const payslips = this.store.payslips.payload
+    return payslips.response.listeObjets
+      .filter(item => item.isTelechargeable === true)
+      .map(item => ({
+        fileurl: `${baseUrl}cesuwebdec/employeurs/${cesuNum}/editions/bulletinSalairePE?refDoc=${item.referenceDocumentaire}`,
+        filename: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}_${format(
+          new Date(item.dtDebut),
+          'yyyy-MM'
+        )}_${item.salaireNet}EUR.pdf`,
+        shouldReplaceName: `${item.salarieDTO.nom}_${item.periode}.pdf`,
+        amount: parseFloat(item.salaireNet),
+        date: new Date(item.dtFin),
+        vendorRef: item.referenceDocumentaire,
+        employee: `${item.salarieDTO.nom}_${item.salarieDTO.prenom}`,
+        fileAttributes: {
+          metadata: {
+            contentAuthor: 'cesu.urssaf.fr',
+            issueDate: new Date(),
+            carbonCopy: true
+          }
+        },
+        vendor: 'cesu'
       }))
   }
 
