@@ -126,19 +126,19 @@ class CesuContentScript extends ContentScript {
     if (!account || !credentials) {
       await this.ensureNotAuthenticated()
       await this.showLoginFormAndWaitForAuthentication()
+      this.log('debug', 'supposed to be logged after showLoginForm')
     } else {
       await this.navigateToDashboardPage()
       const authenticated = await this.runInWorker('checkAuthenticated')
-      this.store.isEmployer = authenticated === 'employer'
       if (authenticated) {
-        this.log('info', `Already connected as ${authenticated}, continue ...`)
+        this.store.isEmployer = await this.runInWorker('determineAccountType')
+        this.log('info', `Already connected as ${this.store.isEmployer ? 'employer' : 'employee'}, continue ...`)
         return true
       } else {
         await this.autoLogin(credentials)
         await this.waitForElementInWorker('#deconnexion_link_mobile')
-        const autoAuth = await this.runInWorker('checkAuthenticated')
-        this.store.isEmployer = autoAuth === 'employer'
-        this.log('info', `autoLogin succeeded as ${autoAuth}`)
+        this.store.isEmployer = await this.runInWorker('determineAccountType')
+        this.log('info', `autoLogin succeeded - isEmployer : ${this.store.isEmployer}`)
       }
     }
     return true
@@ -158,6 +158,7 @@ class CesuContentScript extends ContentScript {
     await this.navigateToLoginForm(loginFormUrl)
     const authenticated = await this.runInWorker('checkAuthenticated')
     if (!authenticated) {
+      this.log('info', 'ensureNotAuthenticated - Not authenticated, return true')
       return true
     }
     await this.runInWorker('click', '#deconnexion_link_mobile')
@@ -169,17 +170,28 @@ class CesuContentScript extends ContentScript {
     this.log('info', '📍️ checkAuthenticated starts')
     const formElement = document.querySelector('#connexion')
     const logoutButton = document.querySelector('#deconnexion_link_mobile')
-    const declaElement = document.querySelector('#page_empl_mes_declarations')
     if (formElement) {
       return false
-    } else if (logoutButton && declaElement) {
-      this.log('info', 'Auth check succeeded - Employer account')
-      return 'employer'
-    } else if (logoutButton && !declaElement) {
-      this.log('info', 'Auth check succeeded - Probably employee account')
-      return 'employee'
+    } else if (logoutButton ) {
+      this.log('info', 'Logout button detected, returning true')
+      return true
     }
     return false
+  }
+
+  async determineAccountType(){
+    this.log('info', '📍️ determineAccountType starts')
+    const logoutButton = document.querySelector('#deconnexion_link_mobile')
+    const declaElement = document.querySelector('#page_empl_mes_declarations')
+    let isEmployer
+     if (logoutButton && declaElement) {
+      this.log('info', 'Auth check succeeded - Employer account')
+      isEmployer = true
+    } else{
+      this.log('info', 'Auth check succeeded - Probably employee account')
+      isEmployer = false
+    }
+    return isEmployer
   }
 
   async showLoginFormAndWaitForAuthentication() {
@@ -190,6 +202,7 @@ class CesuContentScript extends ContentScript {
       method: 'waitForAuthenticated'
     })
     await this.setWorkerState({ visible: false })
+    this.store.isEmployer = await this.runInWorker('determineAccountType')
   }
 
   async fetch(context) {
@@ -435,7 +448,7 @@ class CesuContentScript extends ContentScript {
 
 const connector = new CesuContentScript({ requestInterceptor })
 connector
-  .init({ additionalExposedMethodsNames: ['scrollFormIntoView'] })
+  .init({ additionalExposedMethodsNames: ['scrollFormIntoView', 'determineAccountType'] })
   .catch(err => {
     log.warn(err)
   })
